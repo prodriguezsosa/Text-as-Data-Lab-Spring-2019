@@ -19,5 +19,3 @@ Please make sure you have:
 - Latest version of R
 
 - Latest version of RStudio
-
-- quanteda 1.0.0
