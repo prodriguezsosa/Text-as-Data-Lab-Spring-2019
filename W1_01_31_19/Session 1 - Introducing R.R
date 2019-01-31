@@ -93,7 +93,7 @@ View(polling_data[polling_data$Pollster == "CBS", c("Pollster", "Number.of.Obser
 # note: it's always useful to be able to do things with base R functions (helps understanding)
 
 # Using pipe notation
-polling_data %>% select(Pollster) %>% head()
+polling_data %>% select(Pollster) %>% head(.,10)
 polling_data %>% select(Pollster, Number.of.Observations) %>% head()
 
 # Alternative syntax
@@ -125,7 +125,7 @@ select(filter(polling_data, Pollster == "Quinnipiac"), Number.of.Observations)  
 # 2.4 Creating new variables (columns) in a data frame ----------------------------------------------------
 
 # A) Dollar sign operator
-polling_data$net_clinton_a  <- polling_data$Clinton - polling_data$Trump
+polling_data$net_clinton_a <- polling_data$Clinton - polling_data$Trump
 
 # B) Matrix identifier
 polling_data[, "net_clinton_b"]  <- polling_data[, "Clinton"] - polling_data[, "Trump"]
