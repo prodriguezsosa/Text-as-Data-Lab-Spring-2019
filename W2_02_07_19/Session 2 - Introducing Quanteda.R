@@ -1,24 +1,28 @@
-# TA: Leslie Huang
+# TA: Pedro L. Rodriguez
 # Course: Text as Data
-# Date: 02/01/2018
-# Code originally from: Patrick Chester, Kevin Munger; updated and expanded by Leslie Huang
+# Date: 2/07/2019
+# Lab adapted from: Kevin Munger, Patrick Chester and Leslie Huang.
 
-## 1 Setting up
+#-----------------------------
+# 1 SETTING UP
+#-----------------------------
 
-# 1.1 Workspace
+# 1.1 Workspace -----------------------
 
 # Clear Global Environment
 rm(list = ls())
 
 # Set working directory
-setwd(getwd())
+setwd("/Users/pedrorodriguez/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W2_02_07_18/")
 
 # 1.2 Installing quanteda
 
 # Install the latest stable version of quanteda from CRAN
-install.packages("quanteda") # run this if you don't have quanteda already installed
+#install.packages("quanteda") # run this if you don't have quanteda already installed
 
-library("quanteda")
+library(quanteda)
+library(ggplot2)
+library(dplyr)
 
 # What version of quanteda do you have loaded? 
 # How many threads (cores) are you using? See the printout in the console
@@ -27,10 +31,10 @@ library("quanteda")
 
 # Install the package "devtools" which is used to install packages directly from Github
 # install.packages("devtools")
-library("devtools")
+#library("devtools")
 
 # Use devtools to install some sample data
-devtools::install_github("quanteda/quanteda.corpora")
+#devtools::install_github("quanteda/quanteda.corpora")
 
 # Load it into our environment
 library(quanteda.corpora)
@@ -57,19 +61,6 @@ library(quanteda.corpora)
 # If you want the latest dev version of quanteda, it's on GitHub, but we will use the latest version from CRAN for stability/sanity reasons
 # devtools::install_github("quanteda/quanteda") 
 
-
-## 2 Running basic text analysis
-
-# start with a short character vector
-sampletxt <- "The police with their policing strategy instituted a policy of general 
-iterations at the Data Science Institute."
-
-# 2.1 Let's tokenize (break vector into individual words)
-tokenized_text <- tokens(sampletxt)
-?tokens
-
-tokenized_text <- tokens(sampletxt, remove_punct = TRUE)
-
 # Concept review: Which of these are the same?
 # token
 # type
@@ -77,58 +68,90 @@ tokenized_text <- tokens(sampletxt, remove_punct = TRUE)
 # word
 # term
 
-# 2.2 Stemming examples
-# SnowballC stemmer is based on the Porter stemmer 
+#-----------------------------
+# 1 THE CORPUS OBJECT
+#-----------------------------
 
-stems <- tokens_wordstem(tokenized_text)
-?tokens_wordstem
+# quanteda's main input object is called a "corpus" (a way of organizing text data: generally includes text + metadata)
 
-# 2.3 Loading State of the Union corpus
+# this is NOT the only way, see for example: https://www.tidytextmining.com/tidytext.html
 
+# 1.1 load the State of the Union (SOTU) corpus and look at a summary ---------------------
 data("data_corpus_sotu", package = "quanteda.corpora")
 
-# ndoc identifies the number of documents in a corpus
+# a corpus consists of: (1) documents: text + doc level data (2) corpus metadata (3) settings
+head(docvars(data_corpus_sotu))  # document-level variables
+metacorpus(data_corpus_inaugural)  # corpus-level variables
 
+# ndoc identifies the number of documents in a corpus
 ndocs <- ndoc(data_corpus_sotu)
 
-# Here, we grab the text of Obama's 2016 speech
+# summary of the corpus (provides some summary statistics on the text combined with the metadata)
+corpusinfo <- summary(data_corpus_sotu, n = ndocs)  # note n default is 100
+View(corpusinfo)
 
-obama_2016_sotu <- data_corpus_sotu[ndocs - 2]
+# quick visualization
+token_plot <- ggplot(data = corpusinfo, aes(x = Date, y = Tokens, group = 1)) + geom_line() + geom_point() + theme_bw()
+token_plot
 
-# same as 
+# 1.2 subset corpus ---------------------
+trump_sotu_corpus <- corpus_subset(data_corpus_sotu, President == "Trump")
+summary(corpus_subset(data_corpus_sotu, President == "Trump"))
 
-obama_2016_sotu <- texts(data_corpus_sotu)[ndocs - 2]
+# key words in context (KWIC)
+kwic_america <- kwic(trump_sotu_corpus, pattern = "america", valuetype = "regex")
 
-## 2.4 The DFM function creates a Document Feature Matrix from a document, corpus, etc
-# in this case, from the 2016 speech
+# keep only the text of the most recent SOTU
+trump_2018_text <- texts(trump_sotu_corpus)[2]
 
-obama_dfm <- dfm(obama_2016_sotu, stem = TRUE)
-?dfm
+# same as
+trump_2018_text <- trump_sotu_corpus[2]
 
-# What pre-processing options were used?
+#-----------------------------
+# 2 TOKENIZING & STEMMING
+#-----------------------------
 
-# if we wanted to stem the dfm of Obama's speech
+## 2.1 Tokenizing text ---------------------
+?tokens
+tokenized_speech <- tokens(trump_2018_text)
+head(unname(unlist(tokenized_speech)), 10)
 
-dfm_wordstem(obama_dfm)
+# alternative using only base R
+tokenized_speech <- strsplit(trump_2018_text, " ")
 
-# Inspecting the components of a DFM object
+# remove punctuation when tokenizing
+tokenized_speech <- tokens(trump_2018_text, remove_punct = TRUE)
+head(unname(unlist(tokenized_speech)), 10)
 
-str(obama_dfm) # You can see this in the RStudio "Environment" pane as well
+## 2.2 Stemming ---------------------
+# SnowballC stemmer is based on the Porter stemmer (varies by language, english is default)
+?tokens_wordstem
+stemmed_speech <- tokens_wordstem(tokenized_speech)
+head(unname(unlist(stemmed_speech)), 10)
 
-obama_dfm[1,1:20]
+#-----------------------------
+# 3 DOCUMENT FEATURE MATRIX
+#-----------------------------
 
-# The topfeatures function by default shows the most frequently occuring terms in a given DFM
+## 3.1 Creating a DFM ---------------------
+# input can be a document, corpus, etc
+trump_2018_dfm <- dfm(trump_2018_text, stem = TRUE)
+?dfm  # see all options
+# can also apply stemmer afterwards using dfm_wordstem() on a dfm object
 
-topfeatures(obama_dfm)
+# inspect the first few features (how many rows does this dfm have?)
+trump_2018_dfm[, 1:10]
+dim(trump_2018_dfm)
+
+# top features in dfm
+topfeatures(trump_2018_dfm)
 
 # Are all of these features relevant?
 # Words?
 # Punctuation
 
-## 2.5 Stopwords
-
-# Stopwords are commonly used words that add little understanding to the content of the document by themselves
-
+## 3.2 Stopwords ---------------------
+# Stopwords are commonly words that (presumably) add little understanding to the content of the document by themselves
 # The stopwords function takes a language as an input and produces a vector of stopwords compiled from that language
 
 stopwords("english")
@@ -136,35 +159,32 @@ stopwords("english")
 # Fun fact: Quanteda also supports stopwords for english, SMART, danish, french, greek, hungarian, 
 # norwegian, russian, swedish, catalan, dutch, finnish, german, italian, portuguese, spanish, and arabic
 
-# Here we compare a DFM from the last SOTU while without English stopwords with one that has them
+trump_2018_dfm_1 <- dfm(trump_2018_text, remove_punct = TRUE)
+trump_2018_dfm_2 <- dfm(trump_2018_text, remove = stopwords("english"), remove_punct = TRUE)
 
-obama_dfm_no_preprocessing <- dfm(obama_2016_sotu, remove_punct = TRUE)
-obama_dfm_pre_processed <- dfm(obama_2016_sotu, remove = stopwords("english"), remove_punct = TRUE)
+topfeatures(trump_2018_dfm_1)
+topfeatures(trump_2018_dfm_2)
 
-topfeatures(obama_dfm_no_preprocessing)
-topfeatures(obama_dfm_pre_processed)
-
-## 3 Visualization and Weighted DFM
-
+#-----------------------------
+# 4 WEIGHTED DOCUMENT FEATURE MATRIX
+#-----------------------------
 # Now we will create a DFM of all the SOTU speeches
-
 full_dfm <- dfm(data_corpus_sotu, remove = stopwords("english"), remove_punct = TRUE)
 
 topfeatures(full_dfm)
 
-# 3.1 Visualizing the text contained within the DFM(s)
+## 4.1 Visualizing the text contained within the DFM(s) --------
 
 # Dominated by stopwords
-textplot_wordcloud(obama_dfm_no_preprocessing, max.words = 200)
+textplot_wordcloud(trump_2018_dfm_1, max_words = 200)
 
 # Stopwords removed
-textplot_wordcloud(obama_dfm_pre_processed, max.words = 200)
+textplot_wordcloud(trump_2018_dfm_2, max_words = 200)
 
 # Over all the SOTUs
+textplot_wordcloud(full_dfm, max_words = 200)
 
-textplot_wordcloud(full_dfm, max.words = 200)
-
-# 3.2 tfidf - Frequency weighting
+# 4.2 tfidf - Frequency weighting
 
 weighted_dfm <- dfm_tfidf(full_dfm) # Uses the absolute frequency of terms in each document
 
@@ -172,33 +192,30 @@ topfeatures(weighted_dfm)
 ?tfidf
 
 # tfidf - Relative frequency weighting
-
 normalized <- dfm_tfidf(full_dfm, scheme_tf = "prop") # Uses feature proportions within documents: divdes each term by the total count of features in the document
-
 topfeatures(normalized)
 
 # What do the different rankings imply?
 
-
-## 4 Collocations
-
+#-----------------------------
+# 5 COLLOCATIONS
+#-----------------------------
 # bigrams
 
-textstat_collocations(obama_2016_sotu)
+head(textstat_collocations(trump_2018_sotu))
 ?textstat_collocations
 
 # trigrams
-
-textstat_collocations(obama_2016_sotu, size = 3)
+head(textstat_collocations(trump_2018_sotu, size = 3))
 
 # Are there any other terms you all think are interesting?
 
-
-## 5 Regular expressions
-
+#-----------------------------
+# 6 REGULAR EXPRESSIONS
+#-----------------------------
 # regular expressions are a very powerful tool in wrangling text
 # not a focus of this class, but something to be aware of
-
+# cheatsheet for regex: https://www.rstudio.com/wp-content/uploads/2016/09/RegExCheatsheet.pdf
 ?regex
 
 s_index <- grep(" s ", texts(data_corpus_sotu))
@@ -213,8 +230,9 @@ texts_without_s <- gsub(" s ", "",  data_corpus_sotu[s_index])
 
 # What's the difference between grep and gsub?
 
-## 6 Preprocessing choices
-
+#-----------------------------
+# 7 PRE-PROCESSING CHOICES
+#-----------------------------
 # install.packages("preText")
 
 library("preText")
@@ -223,18 +241,20 @@ library("preText")
 # Example below taken from preText vignette: https://cran.r-project.org/web/packages/preText/vignettes/getting_started_with_preText.html
 
 preprocessed_documents <- factorial_preprocessing(
-                          data_corpus_sotu,
-                          use_ngrams = FALSE,
-                          infrequent_term_threshold = 0.2,
-                          verbose = FALSE)
+  data_corpus_sotu,
+  use_ngrams = FALSE,
+  infrequent_term_threshold = 0.2,
+  verbose = FALSE)
 
-preText_results <- preText(
-                            preprocessed_documents,
-                            dataset_name = "SOTU Speeches",
-                            distance_method = "cosine",
-                            num_comparisons = 20,
-                            verbose = FALSE)
+preText_results <- preText(preprocessed_documents,
+                           dataset_name = "SOTU Speeches",
+                           distance_method = "cosine",
+                           num_comparisons = 20,
+                           verbose = FALSE)
 
 preText_score_plot(preText_results)
 
 # Questions?
+
+# I recommend you check out: https://quanteda.io/articles/quickstart.html
+
