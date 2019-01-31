@@ -76,7 +76,7 @@ glimpse(polling_data)
 # 2.2 Subset dataframes ----------------------------------------------------
 
 # A) Get column with dollar sign operator
-polling_data$Pollster
+head(polling_data$Pollster)
 
 # B) Matrix identifier: df[rowname, colname]
 polling_data[, "Pollster"]
