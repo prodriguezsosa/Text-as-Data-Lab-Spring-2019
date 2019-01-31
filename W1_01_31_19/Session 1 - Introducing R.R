@@ -12,7 +12,7 @@
 # DEBUGGING: rubber duck it
 # Google is your friend. Type your question and add "R" to the end of it.
 # knitr is useful for problem sets that require showing your code
-# for bigger projects: use a dependency manager for projects (see below)
+# for bigger projects: use a dependency manager (packrat) for projects (see below)
 
 #-----------------------------
 # 1 SETTING UP
@@ -102,7 +102,7 @@ head(select(polling_data, Pollster, Number.of.Observations)) # stick to one synt
 # 2.3 How to locate row(s) in a data frame ----------------------------------------------------
 
 # A) Dollar sign operator
-polling_data$Number.of.Observations[1] # Returns the first row of the data frame in the specified column
+polling_data$Number.of.Observations[1] # Returns the first row of the data frame in the specified column (Pytho users: R indexing starts at 1)
 polling_data$Number.of.Observations[1:5] # Returns the first 5 rows of the data frame in the specified column
 polling_data$Number.of.Observations[polling_data$Pollster == "Quinnipiac"] # Returns all rows for the variable "Number.of.Observations" where Pollster = Quinnipiac
 
@@ -203,7 +203,7 @@ plot1
 dev.off()
 
 #-----------------------------
-# 3 CONTROL FLOW & FUNCTIONS
+# 3 LOOP & FUNCTIONS
 #-----------------------------
 
 # 3.1 For Loops
