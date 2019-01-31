@@ -13,7 +13,7 @@
 rm(list = ls())
 
 # Set working directory
-setwd("/Users/pedrorodriguez/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W2_02_07_18/")
+setwd("/Users/pedrorodriguez/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W2_02_07_19/")
 
 # 1.2 Installing quanteda
 

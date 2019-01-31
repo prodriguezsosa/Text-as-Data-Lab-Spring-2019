@@ -24,7 +24,7 @@ rm(list = ls())
 # 1.2 Working directory
 
 getwd()  # returns current working directory
-setwd("/Users/pedrorodriguez/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W1_01_31_18/")  # set working directory
+setwd("/Users/pedrorodriguez/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W1_01_31_19/")  # set working directory
 
 # 1.3 Installing and loading some useful packages
 # install.packages("dplyr")
