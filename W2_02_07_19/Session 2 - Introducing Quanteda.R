@@ -3,6 +3,8 @@
 # Date: 2/07/2019
 # Lab adapted from: Kevin Munger, Patrick Chester and Leslie Huang.
 
+# other "similar" interesting packages: tm, tidytext
+
 #-----------------------------
 # 1 SETTING UP
 #-----------------------------
