@@ -15,7 +15,7 @@
 rm(list = ls())
 
 # Set working directory
-setwd("/Users/pedrorodriguez/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W2_02_07_19/")
+#setwd("/Users/pedrorodriguez/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W2_02_07_19/")
 
 # 1.2 Installing quanteda
 
@@ -109,7 +109,7 @@ summary(corpus_subset(sotu, President == "Trump"))
 trump_sotu <- corpus_subset(sotu, President == "Trump")
 
 # key words in context (KWIC)
-kwic_america <- kwic(trump_sotu, pattern = "america", valuetype = "regex")
+kwic_america <- kwic(trump_sotu, pattern = "america", valuetype = "regex", window = 6)
 kwic_america <- kwic(trump_sotu, pattern = "america")
 
 # keep only the text of the the 2018 SOTU
@@ -141,7 +141,7 @@ stemmed_speech <- tokens_wordstem(tokenized_speech)  # language is an argument
 head(unname(unlist(stemmed_speech)), 20)
 
 ## 2.3 Ngrams ---------------------
-tokenized_speech_ngrams <- tokens(trump_2018_text, remove_punct = TRUE, ngrams = c(1L,2L))
+tokenized_speech_ngrams <- tokens(trump_2018_text, remove_punct = TRUE, ngrams = c(1L, 2L))
 head(unname(unlist(tokenized_speech_ngrams)), 20)
 tail(unname(unlist(tokenized_speech_ngrams)), 20)
 
@@ -155,6 +155,7 @@ tokens(trump_2018_text) %>% unlist() %>% unique() %>% length()
 #-----------------------------
 
 # WHAT'S THE POINT? 42
+# DOCUMENTS AS DISTRIBUTIONS
 
 ## 3.1 Creating a DFM ---------------------
 # input can be a document, corpus, etc
@@ -268,7 +269,7 @@ texts_with_s <- grep(" s ", texts(sotu), value = TRUE)
 texts_without_s <- gsub(" s ", "",  sotu)
 
 # ALWAYS TEST FIRST
-gsub(" s ", "",  "hello how s are you")
+gsub(" s ", " ",  "hello how s are you")
 grepl("^so", c("so today we", "never so today", "today never so"))
 
 # SUGGESTED PACKAGE to deal with regular expressions: stringr
@@ -284,7 +285,7 @@ library("preText")
 # Example below taken from preText vignette: https://cran.r-project.org/web/packages/preText/vignettes/getting_started_with_preText.html
 
 preprocessed_documents <- factorial_preprocessing(
-  sotu,
+  sotu[1:50],
   use_ngrams = FALSE,
   infrequent_term_threshold = 0.2,
   verbose = FALSE)
