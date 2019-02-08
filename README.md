@@ -12,6 +12,12 @@ GitHub users: [Fork](https://help.github.com/articles/fork-a-repo/) this repo.
 
 Non-GitHub users: Go to "Clone or download" > "Download ZIP" to download the files to your machine.
 
+#### Syncing to update files (pull changes)
+
+[Using terminal](https://help.github.com/articles/syncing-a-fork/) 
+
+[Using browser](https://github.com/KirstieJane/STEMMRoleModels/wiki/Syncing-your-fork-to-the-original-repository-via-the-browser)
+
 #### Software
 
 Please make sure you have:
