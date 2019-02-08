@@ -15,7 +15,7 @@
 rm(list = ls())
 
 # Set working directory
-setwd("/Users/pedrorodriguez/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W2_02_07_19/")
+#setwd("/Users/pedrorodriguez/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W2_02_07_19/")
 
 # 1.2 Installing quanteda
 
@@ -54,6 +54,9 @@ library(quanteda.corpora)
 
 # 1.5 Versions of quanteda
 
+# to check version
+packageVersion("quanteda")
+
 # How would you get an older version of quanteda? (For example, if you accidentally installed the dev version from GitHub but you want to go back to the last stable release, or you want a legacy version to support old code.)
 
 # - Check the CRAN archive
@@ -76,38 +79,44 @@ library(quanteda.corpora)
 
 # quanteda's main input object is called a "corpus" (a way of organizing text data: generally includes text + metadata)
 
-# this is NOT the only way, see for example: https://www.tidytextmining.com/tidytext.html
+# THERE ARE OTHER WAYS to organize text data
+# TAKE A LOOK AT: https://www.tidytextmining.com/tidytext.html
+
+# other popular text package with similar features: tm
 
 # 1.1 load the State of the Union (SOTU) corpus and look at a summary ---------------------
-data("data_corpus_sotu", package = "quanteda.corpora")
+#data("sotu", package = "quanteda.corpora")
+sotu <- data_corpus_sotu
 
-# a corpus consists of: (1) documents: text + doc level data (2) corpus metadata (3) settings
-head(docvars(data_corpus_sotu))  # document-level variables
-metacorpus(data_corpus_inaugural)  # corpus-level variables
+# a corpus consists of: (1) documents: text + doc level data (2) corpus metadata (3) extras (settings)
+head(docvars(sotu))  # document-level variables
+metacorpus(sotu)  # corpus-level variables
 
 # ndoc identifies the number of documents in a corpus
-ndocs <- ndoc(data_corpus_sotu)
+ndocs <- ndoc(sotu)
 
 # summary of the corpus (provides some summary statistics on the text combined with the metadata)
-corpusinfo <- summary(data_corpus_sotu, n = ndocs)  # note n default is 100
-View(corpusinfo)
+corpusinfo <- summary(sotu, n = ndocs)  # note n default is 100
+head(corpusinfo)
+# does tokens >= types always hold?
 
 # quick visualization
 token_plot <- ggplot(data = corpusinfo, aes(x = Date, y = Tokens, group = 1)) + geom_line() + geom_point() + theme_bw()
 token_plot
 
 # 1.2 subset corpus ---------------------
-trump_sotu_corpus <- corpus_subset(data_corpus_sotu, President == "Trump")
-summary(corpus_subset(data_corpus_sotu, President == "Trump"))
+summary(corpus_subset(sotu, President == "Trump"))
+trump_sotu <- corpus_subset(sotu, President == "Trump")
 
 # key words in context (KWIC)
-kwic_america <- kwic(trump_sotu_corpus, pattern = "america", valuetype = "regex")
+kwic_america <- kwic(trump_sotu, pattern = "america", valuetype = "regex", window = 6)
+kwic_america <- kwic(trump_sotu, pattern = "america")
 
-# keep only the text of the most recent SOTU
-trump_2018_text <- texts(trump_sotu_corpus)[2]
+# keep only the text of the the 2018 SOTU
+trump_2018_text <- texts(trump_sotu)[2]
 
 # same as
-trump_2018_text <- trump_sotu_corpus[2]
+trump_2018_text <- trump_sotu[2]
 
 #-----------------------------
 # 2 TOKENIZING & STEMMING
@@ -116,33 +125,46 @@ trump_2018_text <- trump_sotu_corpus[2]
 ## 2.1 Tokenizing text ---------------------
 ?tokens
 tokenized_speech <- tokens(trump_2018_text)
-head(unname(unlist(tokenized_speech)), 10)
+head(unname(unlist(tokenized_speech)), 20)
 
 # alternative using only base R
 tokenized_speech <- strsplit(trump_2018_text, " ")
 
 # remove punctuation when tokenizing
 tokenized_speech <- tokens(trump_2018_text, remove_punct = TRUE)
-head(unname(unlist(tokenized_speech)), 10)
+head(unname(unlist(tokenized_speech)), 20)
 
 ## 2.2 Stemming ---------------------
 # SnowballC stemmer is based on the Porter stemmer (varies by language, english is default)
 ?tokens_wordstem
-stemmed_speech <- tokens_wordstem(tokenized_speech)
-head(unname(unlist(stemmed_speech)), 10)
+stemmed_speech <- tokens_wordstem(tokenized_speech)  # language is an argument
+head(unname(unlist(stemmed_speech)), 20)
+
+## 2.3 Ngrams ---------------------
+tokenized_speech_ngrams <- tokens(trump_2018_text, remove_punct = TRUE, ngrams = c(1L, 2L))
+head(unname(unlist(tokenized_speech_ngrams)), 20)
+tail(unname(unlist(tokenized_speech_ngrams)), 20)
+
+## Types vs. Tokens
+ntoken(trump_2018_text)
+ntype(trump_2018_text)
+tokens(trump_2018_text) %>% unlist() %>% unique() %>% length()
 
 #-----------------------------
-# 3 DOCUMENT FEATURE MATRIX
+# 3 DOCUMENT FEATURE MATRIX (~ DTM)
 #-----------------------------
+
+# WHAT'S THE POINT? 42
+# DOCUMENTS AS DISTRIBUTIONS
 
 ## 3.1 Creating a DFM ---------------------
 # input can be a document, corpus, etc
-trump_2018_dfm <- dfm(trump_2018_text, stem = TRUE)
-?dfm  # see all options
-# can also apply stemmer afterwards using dfm_wordstem() on a dfm object
+trump_2018_dfm <- dfm(trump_2018_text)  
 
-# inspect the first few features (how many rows does this dfm have?)
-trump_2018_dfm[, 1:10]
+# inspect the first few features
+trump_2018_dfm[, 1:10]  # why 0% sparse?
+
+# how many rows does this dfm have? 
 dim(trump_2018_dfm)
 
 # top features in dfm
@@ -150,7 +172,22 @@ topfeatures(trump_2018_dfm)
 
 # Are all of these features relevant?
 # Words?
-# Punctuation
+# Punctuation (maybe!!! --> think what the goal is. Can theory help?)
+
+#-----------------------------
+# 4 PREPROCESSING (~FEATURE ENGINEERING)
+#-----------------------------
+# pre-processing can be done prior to dfm OR use the pre-processing arguments of dfm
+?dfm  # see all options
+# NOTE: lowercase argument is by default TRUE
+# punctuation
+trump_2018_dfm <- dfm(trump_2018_text, remove_punct = TRUE)
+trump_2018_dfm[, 1:10]
+
+# stemming
+trump_2018_dfm <- dfm(trump_2018_text, stem = TRUE, remove_punct = TRUE)
+trump_2018_dfm[, 1:10]
+# can also apply stemmer afterwards using dfm_wordstem() on a dfm object
 
 ## 3.2 Stopwords ---------------------
 # Stopwords are commonly words that (presumably) add little understanding to the content of the document by themselves
@@ -167,48 +204,42 @@ trump_2018_dfm_2 <- dfm(trump_2018_text, remove = stopwords("english"), remove_p
 topfeatures(trump_2018_dfm_1)
 topfeatures(trump_2018_dfm_2)
 
+# wordclouds
+textplot_wordcloud(trump_2018_dfm_1, max_words = 100)
+textplot_wordcloud(trump_2018_dfm_2, max_words = 100)
+
 #-----------------------------
 # 4 WEIGHTED DOCUMENT FEATURE MATRIX
 #-----------------------------
+# WHAT ARE WE WEIGHTING?
+
 # Now we will create a DFM of all the SOTU speeches
-full_dfm <- dfm(data_corpus_sotu, remove = stopwords("english"), remove_punct = TRUE)
-
+full_dfm <- dfm(sotu, remove = stopwords("english"), remove_punct = TRUE)
+full_dfm[, 1:10]  # notice sparsity
 topfeatures(full_dfm)
+topfeatures(full_dfm[nrow(full_dfm),])
 
-## 4.1 Visualizing the text contained within the DFM(s) --------
-
-# Dominated by stopwords
-textplot_wordcloud(trump_2018_dfm_1, max_words = 200)
-
-# Stopwords removed
-textplot_wordcloud(trump_2018_dfm_2, max_words = 200)
-
-# Over all the SOTUs
-textplot_wordcloud(full_dfm, max_words = 200)
-
-# 4.2 tfidf - Frequency weighting
-
-weighted_dfm <- dfm_tfidf(full_dfm) # Uses the absolute frequency of terms in each document
-
+# 4.1 tfidf - Frequency weighting
+weighted_dfm <- dfm_tfidf(full_dfm) # uses the absolute frequency of terms in each document
 topfeatures(weighted_dfm)
-?tfidf
+topfeatures(weighted_dfm[nrow(weighted_dfm),])
 
-# tfidf - Relative frequency weighting
+# 4.2 tfidf - Relative frequency weighting
+?dfm_tfidf
 normalized <- dfm_tfidf(full_dfm, scheme_tf = "prop") # Uses feature proportions within documents: divdes each term by the total count of features in the document
 topfeatures(normalized)
-
-# What do the different rankings imply?
+topfeatures(normalized[nrow(normalized),])
 
 #-----------------------------
 # 5 COLLOCATIONS
 #-----------------------------
 # bigrams
-
-head(textstat_collocations(trump_2018_sotu))
-?textstat_collocations
+head(textstat_collocations(trump_2018_text))
+textstat_collocations(trump_2018_text) %>% arrange(-lambda) %>% slice(1:5)
 
 # trigrams
-head(textstat_collocations(trump_2018_sotu, size = 3))
+?textstat_collocations
+head(textstat_collocations(trump_2018_text, size = 3))
 
 # Are there any other terms you all think are interesting?
 
@@ -218,19 +249,30 @@ head(textstat_collocations(trump_2018_sotu, size = 3))
 # regular expressions are a very powerful tool in wrangling text
 # not a focus of this class, but something to be aware of
 # cheatsheet for regex: https://www.rstudio.com/wp-content/uploads/2016/09/RegExCheatsheet.pdf
-?regex
 
-s_index <- grep(" s ", texts(data_corpus_sotu))
+# grep
+s_index <- grep(" s ", texts(sotu))
+head(s_index)
 
-?grep
+# grepl
+s_index <- grepl(" s ", texts(sotu))
+table(s_index)
+
+# grepl
+thank_index <- grepl("^Thank", texts(sotu))
+table(thank_index)
 
 # this returns every speech that contains " s " -- JUST THE LETTER S BY ITSELF
-texts_with_s <- grep(" s ", texts(data_corpus_sotu), value = TRUE)
+texts_with_s <- grep(" s ", texts(sotu), value = TRUE)
 
 # Here we create a vector of documents with " s " removed
-texts_without_s <- gsub(" s ", "",  data_corpus_sotu[s_index])
+texts_without_s <- gsub(" s ", "",  sotu)
 
-# What's the difference between grep and gsub?
+# ALWAYS TEST FIRST
+gsub(" s ", " ",  "hello how s are you")
+grepl("^so", c("so today we", "never so today", "today never so"))
+
+# SUGGESTED PACKAGE to deal with regular expressions: stringr
 
 #-----------------------------
 # 7 PRE-PROCESSING CHOICES
@@ -243,7 +285,7 @@ library("preText")
 # Example below taken from preText vignette: https://cran.r-project.org/web/packages/preText/vignettes/getting_started_with_preText.html
 
 preprocessed_documents <- factorial_preprocessing(
-  data_corpus_sotu,
+  sotu[1:50],
   use_ngrams = FALSE,
   infrequent_term_threshold = 0.2,
   verbose = FALSE)
