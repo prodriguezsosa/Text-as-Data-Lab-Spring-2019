@@ -1,7 +1,7 @@
-# TA: Leslie Huang
+# TA: Pedro L. Rodriguez
 # Course: Text as Data
-# Date: 02/08/2018
-# Code originally from: Patrick Chester; updated and expanded by Leslie Huang
+# Date: 2/14/2019
+# Lab adapted from: Kevin Munger, Patrick Chester and Leslie Huang.
 
 ## Set up Quanteda 
 
@@ -9,10 +9,17 @@
 rm(list = ls())
 
 # Libraries
+library(dplyr)
 library(quanteda)
 library(quanteda.corpora)
 
-## 1 Non English texts
+# sophistication: https://github.com/kbenoit/sophistication
+# gutenbergr: http://www.gutenberg.org/wiki/Main_Page
+# stylest: https://github.com/leslie-huang/stylest/blob/master/vignettes/stylest-vignette.md
+
+#-----------------------------
+# 1 NON-ENGLISH TEXTS
+#-----------------------------
 
 # 1.1 Non-English stopwords
 
@@ -22,7 +29,6 @@ stopwords(language = "german")
 
 stopwords(language = "zh", source = "misc")
 
-
 # 1.2 Text encoding
 
 # What is text encoding?
@@ -30,6 +36,7 @@ stopwords(language = "zh", source = "misc")
 # What kind of encoding can R and/or quanteda handle?
 
 # 1.3 Some types of text encoding
+# character encoding is a set of mappings between the bytes in the computer and the characters in the character set.
 # UTF-8
 # ASCII (subset of UTF-8)
 # Latin-1
@@ -48,10 +55,11 @@ validUTF8("This is a sentence")
 # install.packages("utf8")
 library("utf8")
 
-as_utf8("\xF0\x9F\x98\x81")
-print("\xF0\x9F\x98\x81") # There are issues with base R's print() function for Unicode
+as_utf8("\xF0\x9F\x98\x8D")
+print("\xF0\x9F\x98\x8D") # There are issues with base R's print() function for Unicode
 # any guesses what this is?
-utf8_print("\xF0\x9F\x98\x81")
+utf8_print("\xF0\x9F\x98\x8D")
+# emojis unicodes: https://apps.timwhitlock.info/emoji/tables/unicode
 
 # 1.5 What if you get a weird character and you're not sure?
 
@@ -67,10 +75,8 @@ stri_enc_detect("0x00E3")
 # This is another name for the Latin-1 encoding. 
 
 # 1.6 How do you convert encodings?
-
 test_str <- "São Paulo"
 validUTF8(test_str)
-
 converted_str <- iconv("São Paulo", from = "UTF-8", to = "latin1")
 
 converted_str
@@ -88,9 +94,12 @@ iconv("ã", from = "UTF-8", to = "ASCII")
 
 # The authors of quanteda have also written a package called readtext() that can also deal with encodings in text corpora!
 
-
-## 2 Demonstrate Heap's law 
+#-----------------------------
+# 2 HEAP'S LAW
+#-----------------------------
 # Token-type relationship in corpus
+# How might pre-processing affect this relationship? 
+# Think about reducing the dimensionality of the problem.
 
 #     M = kT^b
 
@@ -107,7 +116,7 @@ Tee <- sum(lengths(tokens))
 
 inaug_dfm <- dfm(data_corpus_inaugural)
 
-M <- nfeat(inaug_dfm)
+M <- nfeat(inaug_dfm)  # number of features = number of types
 
 # Let's check using parameter values from MRS Ch. 5 for a corpus with more than 100,000 tokens
 
@@ -118,8 +127,7 @@ k * (Tee)^b
 
 M
 
-# Let's think about why
-
+# Let's think about why (what types of texts are these?)
 
 # New parameters
 
@@ -128,11 +136,16 @@ b <- 0.46
 
 k * (Tee)^b
 
-## 3 Demonstrate Zipf's law
+#-----------------------------
+# 3 ZIPF'S LAW
+#-----------------------------
 # Term frequency in corpus and rank
 
+plot(log10(1:100), log10(topfeatures(inaug_dfm, 100)),
+     xlab = "log10(rank)", ylab = "log10(frequency)", main = "Top 100 Words in U.S. Presidential Inaugural Speech Corpus")
+
 # x-axis: log of ranks 1 through 100
-# y axis log of frquency of top 100 terms from the DFM
+# y-axis log of frequency of top 100 terms from the DFM
 
 plot(log10(1:100), log10(topfeatures(inaug_dfm, 100)),
      xlab = "log10(rank)", ylab = "log10(frequency)", main = "Top 100 Words in U.S. Presidential Inaugural Speech Corpus")
@@ -149,20 +162,31 @@ confint(regression)
 # Provides R-squared, F-test, and cofficient estimates from regression
 summary(regression)
 
-## 4 Stopwords: do they affect Zipf's law?
+## Stopwords: do they affect Zipf's law?
 
 mydfm <- dfm(data_corpus_inaugural, remove=stopwords("english"))
 
 plot(log10(1:100), log10(topfeatures(mydfm, 100)),
-     xlab = "log10(rank)", ylab = "log10(frequency)", main = "Top 100 Words")
+     xlab = "log10(rank)", ylab = "log10(frequency)", main = "Top 100 Words in U.S. Presidential Inaugural Speech Corpus (w/o stopwords)")
 
 # Regression to check if slope is approx -1.0
 regression <- lm(log10(topfeatures(mydfm, 100)) ~ log10(1:100))
 abline(regression, col = "red")
 confint(regression)
+summary(regression)
 
+# Zipf's law as a feature selection tool (e.g. http://www.jmlr.org/papers/volume3/forman03a/forman03a_full.pdf)
 
-## 5 Key Words In Context (KWIC) is a good way to summarize info about a topic
+plot(1:100, topfeatures(inaug_dfm, 100),
+     xlab = "rank", ylab = "frequency", main = "Top 100 Words in U.S. Presidential Inaugural Speech Corpus")
+
+plot(1:100, topfeatures(mydfm, 100),
+     xlab = "rank", ylab = "frequency", main = "Top 100 Words in U.S. Presidential Inaugural Speech Corpus (w/o stopwords)")
+
+#-----------------------------
+# 4 KEY WORDS IN CONTEXT
+#-----------------------------
+## good way to summarize info about a topic
 
 kwic(data_corpus_inaugural, "America", 3, case_insensitive = FALSE)
 
@@ -170,70 +194,142 @@ help(kwic)
 
 # Suggested terms?
 
-
-## 6 Measuring similarity
-
+#-----------------------------
+# 6 MEASURING SIMILARITY
+#-----------------------------
 # This helps illustrate the value of the vector representation
 
 # 6.1 Cosine similarity--take the dot product of two vectors
-
-# x * y = |x||y|cos
 # cos = x*y/|x||y|
+calculate_cosine_similarity <- function(vec1, vec2) { 
+  nominator <- vec1 %*% vec2  # %*% specifies dot product rather than entry by entry multiplication (we could also do: sum(x * y))
+  denominator <- sqrt(vec1 %*% vec1)*sqrt(vec2 %*% vec2)
+  return(nominator/denominator)
+}
 
+# example 1
 x <- c(1, 2, 3)
 y <- c(1, 2, 3)
- 
-# Define the norm function (to calculate the denominator |x| and |y|)
 
-norm_vec <- function(x) sqrt(sum(x^2))
+# what should we get?
+calculate_cosine_similarity(x, y)
 
-x %*% y / (norm_vec(x) * norm_vec(y))
-
-# What if they're different
-
+# example 2
 a <- c(1, 2, 3)
-b <- c(1, 2, 4000)
+b <- c(-1, -2, -3)
 
-a %*% b / (norm_vec(a) *norm_vec(b) )
+# what should we get?
+calculate_cosine_similarity(a, b)
 
 # Let's do it with texts
-
+num_docs <- ndoc(data_corpus_inaugural)
 last_speech_text <- data_corpus_inaugural[ndoc(data_corpus_inaugural)]
-first_speech_text <- data_corpus_inaugural[ndoc(data_corpus_inaugural) - 2]
+first_speech_text <- data_corpus_inaugural[1]
+
+obama_text <- texts(corpus_subset(data_corpus_inaugural, President == "Obama"))
+lincoln_text <- texts(corpus_subset(data_corpus_inaugural, President == "Lincoln"))
 
 # Make a dfm of these two
-
-first_last_dfm <- dfm(c(last_speech_text, first_speech_text), remove = stopwords("english"), stem = TRUE)
+obama_lincoln_dfm <- dfm(c(obama_text, lincoln_text), remove = stopwords("english"), stem = TRUE)
 
 # Calculate similarity
-
-similarity_first_last_with_preprocessing <- textstat_simil(first_last_dfm, margin = "documents", method = "correlation")
-
-as.matrix(similarity_first_last_with_preprocessing)
+similarity_obama_lincoln_with_preprocessing <- textstat_simil(obama_lincoln_dfm, margin = "documents", method = "cosine")
+as.matrix(similarity_obama_lincoln_with_preprocessing)
 
 # 6.2 Let's see how stopwords/stemming affect similarity
 
-first_last_dfm_no_preprocessing <- dfm(c(last_speech_text, first_speech_text))
+obama_lincoln_no_preprocessing <- dfm(c(obama_text, lincoln_text))
 
 # Calculate similarity
 
-similarity_first_last_no_preprocessing <- textstat_simil(first_last_dfm_no_preprocessing, margin = "documents", method = "correlation")
+similarity_obama_lincoln_with_no_preprocessing <- textstat_simil(obama_lincoln_no_preprocessing, margin = "documents", method = "cosine")
 
-as.matrix(similarity_first_last_no_preprocessing)
+as.matrix(similarity_obama_lincoln_with_no_preprocessing)
 
 # Make a dfm of a several documents
 
 several_inaug_dfm <- dfm(corpus_subset(data_corpus_inaugural , Year > 1980), remove = stopwords("english"), stem = TRUE)
 
-# Calculate similarity
+# Specific comparisons with Obama's first inauguration speech
 
-similarity_several <- textstat_simil(several_inaug_dfm, margin = "documents", method = "correlation")
-
-View(as.matrix(similarity_several))
+textstat_simil(several_inaug_dfm, "2009-Obama", margin = "documents", method = "correlation")
 
 # Other options available: Manhattan distance, cosine, etc.
 ?textstat_simil
 
-# Specific comparisons with Obama's first inauguration speech
+#-----------------------------
+# 7 STYLE
+#-----------------------------
 
-textstat_simil(several_inaug_dfm, "2009-Obama", margin = "documents", method = "correlation")
+# 7.1 data collection (to be used in HW1)
+rm(list = ls())
+# 7.1 Project Gutenberg: http://www.gutenberg.org/wiki/Main_Page
+# collection of (machine readable) novels and other texts + they have an R package!
+#install.packages("gutenbergr")
+# for more info refer to: https://cran.r-project.org/web/packages/gutenbergr/vignettes/intro.html
+library(gutenbergr)
+library(dplyr)
+gutenberg_works()
+
+# what do they have by Jane Austen?
+jane_austen <- gutenberg_works() %>% filter(author == "Austen, Jane")
+jane_austen
+
+# download "Emma"
+emma <- gutenberg_download(jane_austen$gutenberg_id[jane_austen$title == "Emma"])
+#emma <- gutenberg_download(jane_austen$gutenberg_id[jane_austen$title == "Emma"], meta_fields = "title")  # add other meta information
+
+# 7.2 stylest package: estimate speaker (author) style distinctiveness (vis-a-vis other authors)
+# see vignette: https://github.com/leslie-huang/stylest/blob/master/vignettes/stylest-vignette.md
+# early draft version of paper using this package: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3235506
+#install.packages("stylest")
+# source for this code: package vignette
+library(stylest)
+
+# data included in package
+data(novels_excerpts)
+
+# author list
+unique(novels_excerpts$author)
+
+# note how the data is organized
+str(novels_excerpts)
+
+# (1) select most informative (discriminative) features (subsets vocab by frequency percentile)
+filter <- corpus::text_filter(drop_punct = TRUE, drop_number = TRUE)  # pre-processing choices
+set.seed(1984L)  # why set seed?
+vocab_custom <- stylest_select_vocab(novels_excerpts$text, novels_excerpts$author,  # fits n-fold cross-validation
+                                     filter = filter, smooth = 1, nfold = 10,
+                                     cutoff_pcts = c(25, 50, 75, 99))
+
+vocab_custom$cutoff_pct_best  # percentile with best prediction rate
+vocab_custom$miss_pct  # rate of incorrectly predicted speakers of held-out texts
+
+# (2) subset features
+vocab_subset <- stylest_terms(novels_excerpts$text, novels_excerpts$author, vocab_custom$cutoff_pct_best , filter = filter) # USE SAME FILTER
+
+# (3) fit model with "optimal" percentile threshold (i.e. feature subset)
+style_model <- stylest_fit(novels_excerpts$text, novels_excerpts$author, terms = vocab_subset, filter = filter)
+
+# explore output
+head(stylest_term_influence(style_model, novels_excerpts$text, novels_excerpts$author))  # influential terms
+
+str(style_model)
+authors <- unique(novels_excerpts$author)
+term_usage <- style_model$rate
+lapply(authors, function(x) head(term_usage[x,][order(-term_usage[x,])])) %>% setNames(authors)
+
+# (4) predict  speaker of a new text
+new_text <- emma$text[30:75] %>% paste(., collapse = "") 
+pred <- stylest_predict(style_model, new_text)
+pred$predicted
+pred$log_probs
+
+#-----------------------------
+# 8 SOPHISTICATION
+#-----------------------------
+# motivation: flexibly measure the "sophistication" (ease of understanding) of political communication 
+# see paper: https://www.nyu.edu/projects/spirling/documents/BMS_complex.pdf
+#install.packages("sophistication")
+# see vignette: https://github.com/kbenoit/sophistication
+# key insight: use crowdsourcing
