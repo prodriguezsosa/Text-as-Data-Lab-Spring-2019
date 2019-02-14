@@ -80,6 +80,8 @@ validUTF8(test_str)
 converted_str <- iconv("São Paulo", from = "UTF-8", to = "latin1")
 
 converted_str
+validUTF8(converted_str)
+
 # Looks the same right?
 
 charToRaw(converted_str) # Latin-1 encoding
@@ -140,9 +142,6 @@ k * (Tee)^b
 # 3 ZIPF'S LAW
 #-----------------------------
 # Term frequency in corpus and rank
-
-plot(log10(1:100), log10(topfeatures(inaug_dfm, 100)),
-     xlab = "log10(rank)", ylab = "log10(frequency)", main = "Top 100 Words in U.S. Presidential Inaugural Speech Corpus")
 
 # x-axis: log of ranks 1 through 100
 # y-axis log of frequency of top 100 terms from the DFM
@@ -222,10 +221,6 @@ b <- c(-1, -2, -3)
 calculate_cosine_similarity(a, b)
 
 # Let's do it with texts
-num_docs <- ndoc(data_corpus_inaugural)
-last_speech_text <- data_corpus_inaugural[ndoc(data_corpus_inaugural)]
-first_speech_text <- data_corpus_inaugural[1]
-
 obama_text <- texts(corpus_subset(data_corpus_inaugural, President == "Obama"))
 lincoln_text <- texts(corpus_subset(data_corpus_inaugural, President == "Lincoln"))
 
@@ -272,8 +267,7 @@ library(dplyr)
 gutenberg_works()
 
 # what do they have by Jane Austen?
-jane_austen <- gutenberg_works() %>% filter(author == "Austen, Jane")
-jane_austen
+gutenberg_works() %>% filter(author == "Austen, Jane")
 
 # download "Emma"
 emma <- gutenberg_download(jane_austen$gutenberg_id[jane_austen$title == "Emma"])
