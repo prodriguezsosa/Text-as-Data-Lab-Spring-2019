@@ -270,7 +270,7 @@ gutenberg_works()
 gutenberg_works() %>% filter(author == "Austen, Jane")
 
 # download "Emma"
-emma <- gutenberg_download(jane_austen$gutenberg_id[jane_austen$title == "Emma"])
+emma <- gutenberg_download(gutenberg_id = 158)
 #emma <- gutenberg_download(jane_austen$gutenberg_id[jane_austen$title == "Emma"], meta_fields = "title")  # add other meta information
 
 # 7.2 stylest package: estimate speaker (author) style distinctiveness (vis-a-vis other authors)
