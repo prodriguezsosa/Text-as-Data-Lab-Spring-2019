@@ -106,7 +106,7 @@ flesch_point <- irbudgets_df$texts %>% textstat_readability(measure = "Flesch") 
 # ggplot point estimate
 ggplot(flesch_point, aes(x = party, y = mean, colour = party)) +
   geom_point() +
-  coord_flip() + theme_bw() + scale_y_continuous(breaks=seq(floor(min(plot_dt$mean)), ceiling(max(plot_dt$mean)), by = 2)) +
+  coord_flip() + theme_bw() + scale_y_continuous(breaks=seq(floor(min(flesch_point$mean)), ceiling(max(flesch_point$mean)), by = 2)) +
   xlab("") + ylab("Mean Fleisch Score by Party") + theme(legend.position = "none")
 
 # We will use a loop to bootstrap a sample of texts and subsequently calculate standard errors
