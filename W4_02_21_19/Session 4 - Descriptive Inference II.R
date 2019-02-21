@@ -38,7 +38,7 @@ head(irish_budget_TTR)
 
 # 3.2 Mean per-document TTR scores by year, party
 
-TTR_by_year <- aggregate(irish_budget_TTR, by = list(data_corpus_irishbudgets[["year"]]$year), FUN = mean) %>% setNames(c("year", "TTR"))
+TTR_by_year <- aggregate(irish_budget_TTR, by = list(data_corpus_irishbudgets[["year"]]$year), FUN = mean, na.rm = TRUE) %>% setNames(c("year", "TTR"))
 
 plot(TTR_by_year)
 
@@ -47,8 +47,9 @@ aggregate(irish_budget_TTR, by = list(data_corpus_irishbudgets[["party"]]$party)
 # 3.3 Calculate TTR score by year, party 
 
 # by year
-# textstat_lexdiv: "calculates the lexical diversity or complexity of text(s)" using any number of measures.
-textstat_lexdiv(dfm(data_corpus_irishbudgets, groups = "year", remove_punct = TRUE, verbose = TRUE), measure = "TTR")
+# textstat_lexdiv: "calculates the lexical diversity or complexity of text(s)" using any number of measures.'
+TTR <- textstat_lexdiv(budget_tokens, measure = "TTR")
+aggregate(TTR$TTR, by = list(data_corpus_irishbudgets[["year"]]$year), FUN = mean, na.rm = TRUE) %>% setNames(c("year", "TTR"))
 
 # Sidebar: using the "groups" parameter is how to group documents by a covariate -- note how this changes the ndocs of your corpus
 textstat_lexdiv(dfm(data_corpus_irishbudgets, groups = "party", remove_punct = TRUE, verbose = TRUE), measure = "TTR")
