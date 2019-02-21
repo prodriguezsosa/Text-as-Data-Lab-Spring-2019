@@ -34,7 +34,7 @@ irish_budget_TTR <- num_types / num_tokens
 
 head(irish_budget_TTR)
 
-# Would you expect the budgets to become more or less complex over time?
+# Would you expect the budgets to become more or less diverse over time?
 
 # 3.2 Mean per-document TTR scores by year, party
 
@@ -56,17 +56,17 @@ textstat_lexdiv(dfm(data_corpus_irishbudgets, groups = "party", remove_punct = T
 # Thoughts on TTR
 
 #------------------------------
-# 4 READIBILITY MEASURE
+# 4 COMPLEXITY (READIBILITY) MEASURES
 #------------------------------
 
-# 4.1 FRE
+# 4.1 FRE (https://en.wikipedia.org/wiki/Flesch–Kincaid_readability_tests)
 textstat_readability(data_corpus_irishbudgets, "Flesch") %>% head()
 
 textstat_readability(texts(data_corpus_irishbudgets, groups = "year"), "Flesch") 
 
 textstat_readability(texts(data_corpus_irishbudgets, groups = "party"), "Flesch")
 
-# 4.2 Dale-Chall measure
+# 4.2 Dale-Chall measure (https://en.wikipedia.org/wiki/Dale–Chall_readability_formula)
 
 textstat_readability(data_corpus_irishbudgets, "Dale.Chall.old") %>% head()
 
