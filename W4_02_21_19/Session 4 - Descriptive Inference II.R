@@ -52,7 +52,7 @@ TTR <- textstat_lexdiv(budget_tokens, measure = "TTR")
 aggregate(TTR$TTR, by = list(data_corpus_irishbudgets[["year"]]$year), FUN = mean, na.rm = TRUE) %>% setNames(c("year", "TTR"))
 
 # Sidebar: using the "groups" parameter is how to group documents by a covariate -- note how this changes the ndocs of your corpus
-textstat_lexdiv(dfm(data_corpus_irishbudgets, groups = "party", remove_punct = TRUE, verbose = TRUE), measure = "TTR")
+aggregate(TTR$TTR, by = list(data_corpus_irishbudgets[["party"]]$party), FUN = mean, na.rm = TRUE) %>% setNames(c("party", "TTR"))
 
 # Thoughts on TTR
 
