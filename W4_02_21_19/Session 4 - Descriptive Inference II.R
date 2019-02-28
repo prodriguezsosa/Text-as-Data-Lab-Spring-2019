@@ -130,12 +130,9 @@ boot_flesch_by_party <- pblapply(large_parties, function(x){
 })
 names(boot_flesch_by_party) <- large_parties
 
-# Define the standard error function
-std <- function(x) sd(x)/sqrt(length(x))
-
 # compute mean and std.errors
 party_means <- lapply(boot_flesch_by_party, mean) %>% unname() %>% unlist()
-party_ses <- lapply(boot_flesch_by_party, std) %>% unname() %>% unlist()
+party_ses <- lapply(boot_flesch_by_party, sd) %>% unname() %>% unlist() # bootstrap standard error = sample standard deviation bootstrap distribution
 
 # Plot results--party
 plot_dt <- tibble(party = large_parties, mean = party_means, ses = party_ses)
