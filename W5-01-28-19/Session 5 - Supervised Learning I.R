@@ -15,7 +15,7 @@
 rm(list = ls())
 
 # set path where our data is stored
-setwd("~/Dropbox/NYU/Teaching/Text as Data/TaD-2018/W5_02_27_18/")
+setwd("~/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W5-01-28-19/")
 
 # load required libraries
 library(quanteda)
