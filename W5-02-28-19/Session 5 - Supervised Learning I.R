@@ -15,7 +15,7 @@
 rm(list = ls())
 
 # set path where our data is stored
-setwd("~/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W5-01-28-19/")
+setwd("~/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W5-02-28-19/")
 
 # load required libraries
 library(quanteda)
@@ -29,7 +29,7 @@ library(dplyr)
 # for bootstrapping we need to set replace = TRUE
 sample_pop <- 1:5
 sample_pop_size <- length(sample_pop)
-lapply(1:5, function(x) sample(sample_pop, sample_pop_size, replace = FALSE))
+lapply(1:5, function(x) sample(sample_pop, sample_pop_size, replace = TRUE))
 
 #----------------------------------------
 # 2 Load data: conservative manifestos ---
@@ -93,7 +93,7 @@ gsub("(\\w+)-(\\d{2})$", "\\1-19\\2", presidents) # We want to use the $ to indi
 
 testText <- "The quick brown fox named Seamus jumps over the lazy dog also named Seamus, with the newspaper from a a boy named Seamus, in his mouth."
 
-print(dfm(testText, select = "s$", valuetype = "regex"))  # keep only words ending in "s"
+print(dfm(testText, select = "s$", valuetype = "regex")) # keep only words ending in "s"
 
 testTweets <- c("2 + 2 = 4 #1984",
                 "I thought you said the park? Why are we at the vet? #QuestionsFromPets",
