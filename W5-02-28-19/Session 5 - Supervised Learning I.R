@@ -29,7 +29,7 @@ library(dplyr)
 # for bootstrapping we need to set replace = TRUE
 sample_pop <- 1:5
 sample_pop_size <- length(sample_pop)
-lapply(1:5, function(x) sample(sample_pop, sample_pop_size, replace = TRUE))
+lapply(1:5, function(x) sample(sample_pop, sample_pop_size, replace = FALSE))
 
 #----------------------------------------
 # 2 Load data: conservative manifestos ---
