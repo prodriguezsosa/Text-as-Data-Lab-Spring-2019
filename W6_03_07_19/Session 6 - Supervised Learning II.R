@@ -9,7 +9,7 @@
 # clear global environment
 rm(list = ls())
 
-setwd("~/Dropbox/NYU/Teaching/Text as Data/TaD-2018/W6_02_27_18/")
+setwd("~/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W6_03_07_19/")
 
 # load required libraries
 library(quanteda)
