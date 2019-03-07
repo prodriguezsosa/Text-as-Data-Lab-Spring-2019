@@ -15,7 +15,7 @@
 rm(list = ls())
 
 # set path where our data is stored
-setwd("~/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W5-02-28-19/")
+setwd("~/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W5_02_28_19/")
 
 # load required libraries
 library(quanteda)
