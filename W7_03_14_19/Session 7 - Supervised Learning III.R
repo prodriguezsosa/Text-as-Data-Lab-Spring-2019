@@ -1,221 +1,150 @@
-# TA: Leslie Huang
+# TA: Pedro L. Rodríguez
 # Course: Text as Data
-# Date: 3/8/2018
-# Recitation 7: Supervised Learning III
-# Credit: Material updated from Patrick Chester
+# Date: 03/14/2019
+# Lab adapted from: Kevin Munger, Patrick Chester and Leslie Huang.
 
-# Clear Global Environment
+#----------------------------------------
+# Set up environment                     ---
+#----------------------------------------
+# clear global environment
 rm(list = ls())
 
-# Setting WD
-setwd("/Users/lesliehuang/Text-as-Data-Lab-Spr2018/W7_03_08_18/")
-
-# Installing / Loading Libraries
-# install.packages("tm")
-# install.packages("NLP")
-# install.packages("RTextTools")
-
-library(NLP)
-library(tm)
+# load required libraries
+library(dplyr)
 library(RTextTools)
-library(wordcloud)
 
-## 1 Visualizing Bullying Data---Example from Pablo Barbera's Short Course on R, NYU 2016   
+# set working directory
+setwd("~/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W6_03_07_19/")
 
-# https://github.com/pablobarbera/data-science-workshop
+#----------------------------------------
+# 1. Load, clean and inspect data        ---
+#----------------------------------------
+news_data <- readRDS("news_data.rds")
+table(news_data$category)
 
-tweets_df <- read.csv("bullying.csv", stringsAsFactors = F)
+# let's work with 2 categories
+news_samp <- news_data %>% filter(category %in% c("WEIRD NEWS", "GOOD NEWS")) %>% select(headline, category) %>% setNames(c("text", "class"))
 
-# Identify posts with and without bullying traces and create large documents
-no_bullying <- paste(tweets_df$text[tweets_df$bullying_traces == "n"], collapse = " ")
-yes_bullying <- paste(tweets_df$text[tweets_df$bullying_traces == "y"], collapse = " ")
+# get a sense of how the text looks
+dim(news_samp)
+head(news_samp$text[news_samp$class == "WEIRD NEWS"])
+head(news_samp$text[news_samp$class == "GOOD NEWS"])
 
-# Create DTM and preprocess
-groups <- VCorpus(VectorSource(c("No bullying" = no_bullying, "Yes bullying" = yes_bullying)))
-groups <- tm_map(groups, content_transformer(tolower))
-groups <- tm_map(groups, removePunctuation)
-groups <- tm_map(groups, stripWhitespace)
-bullying_dtm <- DocumentTermMatrix(groups)
+# some pre-processing (the rest will let dfm do)
+news_samp$text <- gsub(pattern = "'", "", news_samp$text)  # replace apostrophes
+news_samp$class <- recode(news_samp$class,  "WEIRD NEWS" = "weird", "GOOD NEWS" = "good")
 
-# Label the two groups
-bullying_dtm$dimnames$Docs = c("No bullying", "Yes bullying")
+# what's the distribution of classes?
+prop.table(table(news_samp$class))
 
-# Transpose matrix so that we can use it with comparison.cloud
-bullying_tdm <- t(bullying_dtm)
+# randomize order (notice how we split below)
+set.seed(1984)
+news_samp <- news_samp %>% sample_n(nrow(news_samp))
+rownames(news_samp) <- NULL
 
-# Compute TF-IDF transformation
-bullying_tdm <- as.matrix(weightTfIdf(bullying_tdm))
+#----------------------------------------
+# 2. Support Vector Machine (SVM) using RTextTools ---
+#----------------------------------------
 
-# Display the two word clouds 
-comparison.cloud(bullying_tdm, max.words = 100, colors = c("red", "blue")) # Function is from the wordcloud package
+# A. create document feature matrix (RTextTools has its own function)
+news_dfm <- create_matrix(news_samp$text, language = "english", removePunctuation = TRUE, removeNumbers = TRUE, stemWords = TRUE)
 
+# B. create a "container" (an RTextTools object) with training and test sets
+training_break <- as.integer(0.9 * nrow(news_samp))  # define training set break
+container <- create_container(matrix = news_dfm, 
+                              labels = news_samp$class, 
+                              trainSize = 1:training_break, 
+                              testSize = (training_break + 1):nrow(news_dfm), 
+                              virgin = FALSE)
+
+# C. now we can train any number of models
 print_algorithms()
 
-## 2 Classification with SVM 
+# SVM - linear
+svm.linear <- train_model(container, "SVM", kernel = "linear")
 
-# A) Linear - whole sample
+# SVM - radial
+svm.radial <- train_model(container, "SVM", kernel = "radial")
 
-# Let's train an SVM
-tweets_df$type <- as.numeric(factor(tweets_df$bullying_traces))
+# D. out of sample evaluation
 
-# New package, better for SVM
-?create_matrix
-bullying_dfm  <- create_matrix(tweets_df$text, 
-                      language = "english", 
-                      stemWords = FALSE,
-                      weighting = weightTfIdf, 
-                      removePunctuation = FALSE
-                      )
-str(bullying_dfm)
+# predict test set classes
+svm.linear.classify <- classify_model(container, svm.linear)
+svm.radial.classify <- classify_model(container, svm.radial)
 
+# get confusion matrix
+cmat <- table(news_samp$class[(training_break + 1):nrow(news_dfm)], svm.linear.classify$SVM_LABEL)
+linear_acc <- sum(diag(cmat))/sum(cmat) # accuracy = (TP + TN) / (TP + FP + TN + FN)
 
-# Make it all in-sample
-?create_container
-container <- create_container(bullying_dfm, 
-                              t(tweets_df$type), 
-                              trainSize = 1:length(tweets_df$type),
-                              virgin = FALSE
-                              )
+cmat <- table(news_samp$class[(training_break + 1):nrow(news_dfm)], svm.radial.classify$SVM_LABEL)
+radial_acc <- sum(diag(cmat))/sum(cmat) # accuracy = (TP + TN) / (TP + FP + TN + FN)
 
-# Train the model
-?cross_validate
-cv.svm <- cross_validate(container, nfold = 4, algorithm = 'SVM', kernel = 'linear')
+# baseline
+baseline_acc <- max(prop.table(table(news_samp$class[(training_break + 1):nrow(news_dfm)])))
+
+# print
+cat(
+  "Baseline Accuracy: ", baseline_acc, "\n",
+  "SVM-Linear Accuracy:",  linear_acc, "\n",
+  "SVM-Radial Accuracy:",  radial_acc
+)
+
+# each model has its own set of tuning parameters
+?train_model
 
 ## Comments:
-# linear vs radial kernels, radial can overfit
+# linear vs radial kernels 
+# radial more flexible BUT/HENCE can overfit
 # linear kernel is faster
 # nfold is the number of times you have a different test set
 
-# B) Linear - 90% Training data
+#----------------------------------------
+# 3. Support Vector Machine (SVM) using Caret ---
+#----------------------------------------
+library(caret)
+library(quanteda)
 
-training_break <- as.integer(0.9 * nrow(tweets_df))
+# create document feature matrix
+news_dfm <- dfm(news_samp$text, stem = TRUE, remove_punct = TRUE, remove = stopwords("english")) %>% convert("matrix")
 
-container      <- create_container(bullying_dfm, 
-                                   t(tweets_df$type), 
-                                   trainSize = 1:training_break,
-                                   testSize = (training_break+1):nrow(tweets_df), 
-                                   virgin = FALSE
-                                   )
+# A. the caret package has it's own partitioning function
+set.seed(1984)
+ids_train <- createDataPartition(1:nrow(news_dfm), p = 0.8, list = FALSE, times = 1)
+train_x <- news_dfm[ids_train, ] %>% as.data.frame() # train set data
+train_y <- news_samp$class[ids_train] %>% as.factor()  # train set labels
+test_x <- news_dfm[-ids_train, ]  %>% as.data.frame() # test set data
+test_y <- news_samp$class[-ids_train] %>% as.factor() # test set labels
 
-# Let's train the model 
-cv.svm <- cross_validate(container, 
-                         nfold = 4,
-                         algorithm = 'SVM', 
-                         kernel = 'linear'
-                         )
+# B. define training options (we've done this manually above)
+trctrl <- trainControl(method = "none")
+#trctrl <- trainControl(method = "LOOCV", p = 0.8)
 
+# C. train model (caret gives us access to even more options)
+# see: https://topepo.github.io/caret/available-models.html
 
-# Validate
-cv.svm$meanAccuracy
+# svm - linear
+svm_mod_linear <- train(x = train_x,
+                        y = train_y,
+                        method = "svmLinear",
+                        trControl = trctrl)
 
-prop.table(table(tweets_df$type)) # baseline
+svm_linear_pred <- predict(svm_mod_linear, newdata = test_x)
+svm_linear_cmat <- confusionMatrix(svm_linear_pred, test_y)
 
+# svm - radial
+svm_mod_radial <- train(x = train_x,
+                        y = train_y,
+                        method = "svmRadial",
+                        trControl = trctrl)
 
-# How well did we do?
+svm_radial_pred <- predict(svm_mod_radial, newdata = test_x)
+svm_radial_cmat <- confusionMatrix(svm_radial_pred, test_y)
 
-# C) Radial - 90% training data
-
-# Let's try again with the radial kernel
-cv.svm <- cross_validate(container, 
-                         nfold = 4, 
-                         algorithm = 'SVM', 
-                         kernel = 'radial'
-                         )
-
-cv.svm$meanAccuracy
-
-# D) Linear - 50% training data
-
-# What if we try with different % test/train?
-training_break <- as.integer(0.5 * nrow(tweets_df))
-
-# There is no theoretical reason to choose .5 or .9
-container      <- create_container(bullying_dfm, 
-                                   t(tweets_df$type), 
-                                   trainSize = 1:training_break,
-                                   testSize = (training_break+1):nrow(tweets_df), 
-                                   virgin = FALSE
+cat(
+  "Baseline Accuracy: ", baseline_acc, "\n",
+  "SVM-Linear Accuracy:",  svm_linear_cmat$overall[["Accuracy"]], "\n",
+  "SVM-Radial Accuracy:",  svm_radial_cmat$overall[["Accuracy"]]
 )
 
-cv.svm <- cross_validate(container, 
-                         nfold = 4, 
-                         algorithm = 'SVM', 
-                         kernel = 'radial'
-)
-
-cv.svm$meanAccuracy
-
-prop.table(table(tweets_df$type)) # baseline
-
-
-
-## 3 Virality of stories from NYT
-
-nyt_fb <- read.csv("nyt-fb.csv", stringsAsFactors = FALSE)
-
-str(nyt_fb)
-
-
-# Create variables for month and hour
-head(nyt_fb$created_time)
-
-month <- substr(nyt_fb$created_time, 6, 7)
-
-hour <- substr(nyt_fb$created_time, 12, 13)
-
-nyt_fb <- data.frame(nyt_fb, month, hour)
-
-
-# Create a "viral" index
-total.resp <- nyt_fb$likes_count + nyt_fb$shares_count + nyt_fb$comments_count
-
-# Look at the extreme of the distribution
-perc_90 <- quantile(total.resp, .9) 
-
-# Create a binary y variable with values 2 being viral and 1 being non-viral
-nyt_fb$viral <- as.numeric(total.resp > perc_90)
-
-# For the purposes of not destroying my laptop, let's choose a set of features
-training_break <- as.integer(0.9*nrow(nyt_fb))
-
-# A) Classification with SVM
-nyt_dtm       <- create_matrix(nyt_fb$message, language = "english", stemWords = FALSE,
-                           weighting = weightTfIdf, removePunctuation = FALSE)
-
-container      <- create_container(nyt_dtm, t(nyt_fb$type), trainSize = 1:training_break,
-                                   testSize = (training_break+1):nrow(nyt_fb), virgin = FALSE)
-
-cv.svm <- cross_validate(container, nfold = 2, algorithm = 'SVM', kernel = 'linear')
-
-cv.svm$meanAccuracy
-
-prop.table(table(nyt_fb$viral))
-
-
-# B) Classification with logistic regression
-
-message <- removePunctuation(tolower(nyt_fb$message))
-nyt_fb$israel <- grepl("israel", message)
-nyt_fb$trump <- grepl("trump", message)
-nyt_fb$hillary <- grepl("hillary", message)
-nyt_fb$obama <- grepl("barack|obama", message)
-nyt_fb$terror <- grepl("terror|isis|isil|qaeda", message)
-nyt_fb$kill <- grepl("kill|murder|shot", message)
-nyt_fb$debate <- grepl("debat", message)
-
-# Fitting a logistic model
-glm.viral <- glm(as.factor(viral) ~ month + hour + 
-                   israel + trump + hillary + obama + terror + kill + 
-                   debate, 
-                 data = nyt_fb, 
-                 family = binomial(logit)
-                 )
-
-
-tab <- table(round(glm.viral$fitted.values), nyt_fb$viral)
-
-# Accuracy of Logistic Regression
-sum(diag(tab))/sum(tab)
-
-# In this case, SVM had a higher level of accuracy than logit. Why might that be? 
+# why may result differ from above?
 
