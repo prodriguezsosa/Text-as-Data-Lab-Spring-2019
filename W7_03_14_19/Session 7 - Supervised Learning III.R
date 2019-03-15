@@ -16,6 +16,8 @@ library(RTextTools)
 # set working directory
 setwd("~/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W6_03_07_19/")
 
+# SUGGESTION: we looked at both RTextTools & caret, but use caret if possible rather than RTextTools given the latter has been archived
+
 #----------------------------------------
 # 1. Load, clean and inspect data        ---
 #----------------------------------------
@@ -79,9 +81,6 @@ linear_acc <- sum(diag(cmat))/sum(cmat) # accuracy = (TP + TN) / (TP + FP + TN +
 cmat <- table(news_samp$class[(training_break + 1):nrow(news_dfm)], svm.radial.classify$SVM_LABEL)
 radial_acc <- sum(diag(cmat))/sum(cmat) # accuracy = (TP + TN) / (TP + FP + TN + FN)
 
-# baseline
-baseline_acc <- max(prop.table(table(news_samp$class[(training_break + 1):nrow(news_dfm)])))
-
 # print
 cat(
   "Baseline Accuracy: ", baseline_acc, "\n",
@@ -114,6 +113,9 @@ train_x <- news_dfm[ids_train, ] %>% as.data.frame() # train set data
 train_y <- news_samp$class[ids_train] %>% as.factor()  # train set labels
 test_x <- news_dfm[-ids_train, ]  %>% as.data.frame() # test set data
 test_y <- news_samp$class[-ids_train] %>% as.factor() # test set labels
+
+# baseline
+baseline_acc <- max(prop.table(table(test_y)))
 
 # B. define training options (we've done this manually above)
 trctrl <- trainControl(method = "none")
