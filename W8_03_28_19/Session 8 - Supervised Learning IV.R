@@ -1,290 +1,180 @@
-# TA: Leslie Huang
+# TA: Pedro L. Rodríguez
 # Course: Text as Data
-# Date: 3/22/2018
-# Recitation 8: Supervised Learning IV
+# Date: 03/28/2019
 
-# Setup
+# discuss HW2 typos
+
+#----------------------------------------
+# go over concepts                       ---
+#----------------------------------------
+# Ensemble methods 
+# Ensemble = a group of predictors
+# intuition: wisdom of the crowds (best if predictions are independent)
+# 1. Bagging: use different random subsets of the training set w. replacement
+# 2. Pasting: use different random subsets of the training set w/o replacement
+# 3. Boosting: train predictors sequentially, each trying to correct its predecessor
+# 3a. AdaBoost: increase weight of instances that predecessor underfitted
+# 3b. Gradient Boosting: fit new predictor to the residual erors made by the previous predictor
+# 4. Stacking: train a model to aggregate predictions of all predictors in an ensemble (can have several layers)# TA: Pedro L. Rodríguez
+# Random Forest is an ensemble of decision trees (generally use bagging)
+# Random Forest introduces randomness when growing trees: 
+# non RF-decision trees search for the best feature among ALL features when splitting a node
+# decision-trees in a RF algorithm search for the best feature among a random subset of features
+
+#----------------------------------------
+# Set up environment                     ---
+#----------------------------------------
+# clear global environment
 rm(list = ls())
-set.seed(100)
-setwd("/Users/lesliehuang/Text-as-Data-Lab-Spr2018/W8_03_22_18/")
 
-
-# Questions from last time ...
-
-# 1 Tuning hyperparameters for SVM? ** Beyond the scope of this class **
-
-# install.packages("e1071")
-library(e1071)
-
-# Simple example here: https://rischanlab.github.io/SVM.html
-
-# Many other machine learning tools are available in that library as well.
-
-# NB: e1071 uses libsvm(), a Python library. And RTextTools, the package from last time, uses e1071.
-# However, if you're using Python, sklearn has a great SVM implementation!
-
-
-# 2 More SVM
-
-library(RTextTools)
-library(tm)
-library(quanteda)
-library(quanteda.corpora)
-
-# 2.1 
-
-data("data_corpus_ukmanifestos")
-manifesto_corpus <- corpus(data_corpus_ukmanifestos)
-
-# SVM is very difficult with more than 2 classes, so let's subset to Labour and Conservative only
-manifesto_corpus <- corpus_subset(manifesto_corpus, Party == "Lab" | Party == "Con")
-
-# Class labels are the party labels
-manifesto_labels <- docvars(manifesto_corpus, "Party")
-
-manifesto_dfm <- dfm(manifesto_corpus)
-
-manifesto_mat <- quanteda::convert(manifesto_dfm, "matrix") # convert to matrix format
-
-# Now we're going to do 1-fold cross-validation... "by hand" (without using the cross_validate function)
-
-# Create containers
-training_break <- floor( 0.9 * length(manifesto_labels) )
-
-training_manifesto_dtm <- manifesto_mat[1:training_break, ]
-test_manifesto_dtm <- manifesto_mat[(training_break + 1 ): length(manifesto_labels), ]
-
-train_manifesto_container <- create_container(training_manifesto_dtm, 
-                                              manifesto_labels[1:training_break], 
-                                              trainSize = 1:nrow(training_manifesto_dtm), 
-                                              virgin = FALSE
-                                              )
-
-test_manifesto_container <- create_container(test_manifesto_dtm, 
-                                             manifesto_labels[training_break + 1 : length(manifesto_labels)], 
-                                             trainSize = 1:nrow(test_manifesto_dtm), 
-                                             virgin = FALSE
-                                             )
-
-# Train a model on the training data
-
-manifesto_train_svm <- train_model(train_manifesto_container, "SVM", kernel = "linear")
-
-# Predict the test data
-classify_model(test_manifesto_container, manifesto_train_svm)
-
-# Accuracy?
-
-manifesto_labels[(training_break+1):length(manifesto_labels)]
-
-# 2/4 correct... Not great!
-
-
-
-# 3 SVM with tf-idf or raw term frequencies: which has better performance?
-
-# We might expect that tf-idf is better because it upweights terms that discriminate more between documents 
-
-# 3.1 Compare radial/linear SVM over tf/tf-idf inputs
-
-# Modified example from https://rpubs.com/bmcole/reuters-text-categorization
-
-# Another great library!
-# install.packages("caret")
-
+# load required libraries
+library(dplyr)
+library(randomForest)
+library(mlbench)
 library(caret)
 
-
-# 3.2 Wrangle in the data
-
-r8train <- read.table("r8-train-all-terms.txt", header=FALSE, sep='\t')
-r8test <- read.table("r8-test-all-terms.txt", header=FALSE, sep='\t')
-# Data credit: https://www.cs.umb.edu/~smimarog/textmining/datasets/
-
-
-# rename variables
-names(r8train) <- c("Class", "docText")
-names(r8test) <- c("Class", "docText")
-
-# convert the document text variable to character type
-r8train$docText <- as.character(r8train$docText)
-r8test$docText <- as.character(r8test$docText)
-
-# create varible to denote if observation is train or test
-r8train$train_test <- c("train")
-r8test$train_test <- c("test")
-
-# merge the train/test data
-merged <- rbind(r8train, r8test)
-
-# remove objects that are no longer needed 
-remove(r8train, r8test)
-
-# subset to 3 document classes only for sake of computational expense/memory
-merged <- merged[which(merged$Class %in% c("grain", "ship", "trade")),]
-
-# drop unused levels in the response variable
-merged$Class <- droplevels(merged$Class) 
-
-# counts of each class in the train/test sets
-table(merged$Class, merged$train_test) 
-
-rownames(merged) <- NULL # reset rownames to numbers
-
-
-# 3.3 Create corpus, preprocess, DTM
-sourceData <- VectorSource(merged$docText)
-
-# create the corpus
-corpus <- Corpus(sourceData)
-
-# preprocess/clean the training corpus
-corpus <- tm_map(corpus, content_transformer(tolower)) # convert to lowercase
-corpus <- tm_map(corpus, removeNumbers) # remove digits
-corpus <- tm_map(corpus, removePunctuation) # remove punctuation
-corpus <- tm_map(corpus, stripWhitespace) # strip extra whitespace
-corpus <- tm_map(corpus, removeWords, stopwords('english')) # remove stopwords
-
-# create term document matrix (tdm)
-tdm <- DocumentTermMatrix(corpus)
-
-# create tf-idf weighted version of term document matrix
-weightedtdm <- weightTfIdf(tdm)
-
-
-# 3.4 TDM --> DF for test/training 
-
-# convert tdm's into data frames 
-tdm_df <- as.data.frame(as.matrix(tdm))
-weightedtdm_df <- as.data.frame(as.matrix(weightedtdm))
-
-# split back into train and test sets
-tdmTrain <- tdm_df[which(merged$train_test == "train"), ]
-weightedTDMtrain <- weightedtdm_df[which(merged$train_test == "train"), ]
-
-tdmTest <-  tdm_df[which(merged$train_test == "test"), ]
-weightedTDMtest <- weightedtdm_df[which(merged$train_test == "test"), ]
-
-# append document labels as last column
-tdmTrain$doc.class <- merged$Class[which(merged$train_test == "train")]
-tdmTest$doc.class <- merged$Class[which(merged$train_test == "test")]
-weightedTDMtrain$doc.class <- merged$Class[which(merged$train_test == "train")]
-weightedTDMtest$doc.class  <- merged$Class[which(merged$train_test == "test")]
-
-
-# 3.5 Linear SVM + tf-idf
-
-# set resampling scheme: 10-fold cross-validation, 3 times
-ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
-
-# SVM using the weighted (td-idf) term document matrix
-# kernel: linear 
-# tuning parameters: C 
-
-load("svm_knn_workspace.RData") # this will take too long to run here!
-
-svm.tfidf.linear  <- train(doc.class ~ . , data = weightedTDMtrain, trControl = ctrl, method = "svmLinear")
-
-# 3.6 Radial SVM + tf-idf
-
-# tuning parameters: sigma, C 
-svm.tfidf.radial  <- train(doc.class ~ . , data=weightedTDMtrain, trControl = ctrl, method = "svmRadial")
-
-# predict on test data
-svm.tfidf.linear.predict <- predict(svm.tfidf.linear,newdata = weightedTDMtest)
-svm.tfidf.radial.predict <- predict(svm.tfidf.radial,newdata = weightedTDMtest)
-
-
-# 3.7 Linear SVM + unweighted dfm
- 
-# tuning parameters: C 
-svm.linear  <- train(doc.class ~ . , data=tdmTrain, trControl = ctrl, method = "svmLinear")
-
-# 3.8 Radial SVM + unweighted
-
-# tuning parameters: sigma, C 
-set.seed(100)
-svm.radial  <- train(doc.class ~ . , data=tdmTrain, trControl = ctrl, method = "svmRadial")
-
-# predict on test data
-svm.linear.predict <- predict(svm.linear,newdata = tdmTest)
-svm.radial.predict <- predict(svm.radial,newdata = tdmTest)
-
-
-# 3.9 Performance
-
-# Weighted:
-
-svm.tfidf.linear # linear kernel
-svm.tfidf.radial # radial basis function kernel
-
-plot(svm.tfidf.radial)
-
-# Unweighted:
-
-svm.linear
-svm.radial
-
-plot(svm.radial)
-
-
-# confusion matrices allow you to evaluate accuracy and other metrics
-confusionMatrix(svm.linear.predict, tdmTest$doc.class)  # linear kernel, unweighted TDM
-
-confusionMatrix(svm.radial.predict, tdmTest$doc.class)  # radial kernel, unweighted TDM ** Best performance!
-
-confusionMatrix(svm.tfidf.linear.predict, weightedTDMtest$doc.class) # linear kernel, weighted TDM
-
-confusionMatrix(svm.tfidf.radial.predict, weightedTDMtest$doc.class) # radial kernel, weighted TDM
-
-# print various info about parameters, etc. used in the model with highest accuracy
-svm.radial$results # error rate and values of tuning parameter
-
-svm.linear$bestTune # final tuning parameter
-
-svm.linear$metric # metric used to select optimal model
-
-
-# 4 KNN -- also from https://rpubs.com/bmcole/reuters-text-categorization
-
-# set resampling scheme
-ctrl_knn <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
-
-# 4.1 fit a kNN model using the weighted (td-idf) term document matrix
-
-# tuning parameter: K
-knn.tfidf <- train(doc.class ~ ., data = weightedTDMtrain, method = "knn", trControl = ctrl_knn)
-
-# predict on test data
-knn.tfidf.predict <- predict(knn.tfidf, newdata = weightedTDMtest)
-
-# 4.2 fit a kNN model using the unweighted TDM
-# tuning parameter: K
-
-knn <- train(doc.class ~ ., data = tdmTrain, method = "knn", trControl = ctrl_knn)
-
-# predict on test data
-knn.predict <- predict(knn, newdata = tdmTest)
-
-# 4.3 Performance
-
-knn.tfidf
-
-knn
-
-# plot accuracy vs. number of neighbors
-
-plot(knn.tfidf)
-
-# confusion matrices allow you to evaluate accuracy and other metrics
-confusionMatrix(knn.predict, tdmTest$doc.class)  # unweighted TDM
-
-confusionMatrix(knn.tfidf.predict, weightedTDMtest$doc.class)  # weighted TDM
-plot(knn)
-
-# print info about parameters, etc. used in the model with highest accuracy
-knn$results # error rate and values of tuning parameter
-
-knn$bestTune # final tuning parameter
-
-save.image("svm_knn_workspace.RData")
+# set working directory
+setwd("~/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W6_03_07_19/")
+
+#----------------------------------------
+# 1. Load, clean and inspect data        ---
+#----------------------------------------
+news_data <- readRDS("news_data.rds")
+table(news_data$category)
+
+# let's work with 2 categories
+set.seed(1984)
+news_samp <- news_data %>% 
+  filter(category %in% c("MONEY", "LATINO VOICES")) %>% 
+  group_by(category) %>%
+  sample_n(500) %>%  # sample 250 of each to reduce computation time (for lab purposes)
+  ungroup() %>%
+  select(headline, category) %>% 
+  setNames(c("text", "class"))
+
+# get a sense of how the text looks
+dim(news_samp)
+head(news_samp$text[news_samp$class == "MONEY"])
+head(news_samp$text[news_samp$class == "LATINO VOICES"])
+
+# some pre-processing (the rest we'll let dfm do)
+news_samp$text <- gsub(pattern = "'", "", news_samp$text)  # replace apostrophes
+news_samp$class <- recode(news_samp$class,  "MONEY" = "money", "LATINO VOICES" = "latino")
+
+# what's the distribution of classes?
+prop.table(table(news_samp$class))
+
+# randomize order (notice how we split below)
+set.seed(1984)
+news_samp <- news_samp %>% sample_n(nrow(news_samp))
+rownames(news_samp) <- NULL
+
+#----------------------------------------
+# 2. Prepare Data                        ---
+#----------------------------------------
+library(caret)
+library(quanteda)
+
+# create document feature matrix
+news_dfm <- dfm(news_samp$text, stem = TRUE, remove_punct = TRUE, remove = stopwords("english")) %>% convert("matrix")
+
+# keep tokens that appear in at least 5 headlines
+presen_absent <- news_dfm 
+presen_absent[presen_absent > 0] <- 1
+feature_count <- apply(presen_absent, 2, sum)
+features <- names(which(feature_count > 5))
+news_dfm <- news_dfm[,features]
+
+# caret package has it's own partitioning function
+set.seed(1984)
+ids_train <- createDataPartition(1:nrow(news_dfm), p = 0.8, list = FALSE, times = 1)
+train_x <- news_dfm[ids_train, ] %>% as.data.frame() # train set data
+train_y <- news_samp$class[ids_train] %>% as.factor()  # train set labels
+test_x <- news_dfm[-ids_train, ]  %>% as.data.frame() # test set data
+test_y <- news_samp$class[-ids_train] %>% as.factor() # test set labels
+
+#----------------------------------------
+# 3. Using RandomForest                  ---
+#----------------------------------------
+library(randomForest)
+mtry = sqrt(ncol(train_x))  # number of features to sample at each split
+ntree = 51  # numbre of trees to grow
+# more trees generally improve accuracy but at the cost of computation time
+# odd numbers avoid ties (recall default aggregation is "majority voting")
+set.seed(1984)
+system.time(rf.base <- randomForest(x = train_x, y = train_y, ntree = ntree, mtry = mtry))
+token_importance <- round(importance(rf.base, 2), 2)
+head(rownames(token_importance)[order(-token_importance)])
+
+# print results
+print(rf.base)
+
+# plot importance
+# gini impurity = how "pure" is given node ~ class distribution
+# = 0 if all instances the node applies to are of the same class
+# upper bound depends on number of instances
+varImpPlot(rf.base, n.var = 10, main = "Variable Importance")
+
+#----------------------------------------
+# 4. RandomForest Using Caret            ---
+#----------------------------------------
+trainControl <- trainControl(method = "cv", number = 5)
+metric <- "Accuracy"
+mtry <- sqrt(ncol(train_x))
+ntree = 51  
+tunegrid <- expand.grid(.mtry = mtry)
+set.seed(1984)
+system.time(rf.caret <- train(x = train_x, y = train_y, method = "rf", metric = metric, tuneGrid = tunegrid, trControl = trainControl,
+                              ntree = ntree))
+
+# print results
+print(rf.caret)
+
+# plot importance
+varImpPlot(rf.caret$finalModel, n.var = 10, main = "Variable Importance")
+
+#----------------------------------------
+# 5. RandomForest Using Caret + tuning   ---
+#----------------------------------------
+# note: the package RandomForest also has its own tuning function: tuneRF
+trainControl <- trainControl(method = "cv", number = 5)
+metric <- "Accuracy"
+tunegrid <- expand.grid(.mtry = c(0.5*mtry, mtry, 1.5*mtry))  # at the moment caret only allows tuning of mtry (partly b/c ntree is just a matter of computational constratints)
+set.seed(1984)
+system.time(rf.grid <- train(x = train_x, y = train_y, method = "rf", metric = metric, tuneGrid = tunegrid, trControl = trainControl, 
+                             ntree = ntree))
+# print grid search results
+print(rf.grid)
+
+# plot grid search results
+plot(rf.grid)
+
+#----------------------------------------
+# 6. RandomForest Using Caret + manual tuning ---
+#----------------------------------------
+mtry <- sqrt(ncol(train_x))
+tunegrid <- expand.grid(.mtry = mtry)
+# ntree = 1
+set.seed(1984)
+system.time(rf.man1 <- train(x = train_x, y = train_y, method = "rf", metric = metric, tuneGrid = tunegrid, trControl = trainControl, ntree = 1))
+
+# ntree = 5
+set.seed(1984)
+system.time(rf.man2 <- train(x = train_x, y = train_y, method = "rf", metric = metric, tuneGrid = tunegrid, trControl = trainControl, ntree = 5))
+
+# ntree = 101
+set.seed(1984)
+system.time(rf.man3 <- train(x = train_x, y = train_y, method = "rf", metric = metric, tuneGrid = tunegrid, trControl = trainControl, ntree = 51))
+
+# collect results & summarize
+results <- resamples(list(rf1 = rf.man1, rf5 = rf.man2, rf51 = rf.man3))
+summary(results)
+
+# test set accuracy
+confusionMatrix(predict(rf.man1, newdata = test_x), test_y)
+confusionMatrix(predict(rf.man2, newdata = test_x), test_y)
+confusionMatrix(predict(rf.man3, newdata = test_x), test_y)
+
+# box and whisker plots to compare models
+scales <- list(x = list(relation = "free"), y = list(relation = "free"))
+bwplot(results, scales = scales)
