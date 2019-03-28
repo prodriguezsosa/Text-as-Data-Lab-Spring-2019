@@ -13,11 +13,11 @@
 # 1. Bagging: use different random subsets of the training set w. replacement
 # 2. Pasting: use different random subsets of the training set w/o replacement
 # 3. Boosting: train predictors sequentially, each trying to correct its predecessor
-# 3a. AdaBoost: increase weight of instances that predecessor underfitted
+# 3a. AdaBoost: increase weight of instances that predecessor underfitted/misclassified
 # 3b. Gradient Boosting: fit new predictor to the residual erors made by the previous predictor
-# 4. Stacking: train a model to aggregate predictions of all predictors in an ensemble (can have several layers)# TA: Pedro L. Rodríguez
+# 4. Stacking: train a model to aggregate predictions of all predictors in an ensemble (can have several layers)
 # Random Forest is an ensemble of decision trees (generally use bagging)
-# Random Forest introduces randomness when growing trees: 
+# Random Forest introduces additional source of randomness when growing trees: 
 # non RF-decision trees search for the best feature among ALL features when splitting a node
 # decision-trees in a RF algorithm search for the best feature among a random subset of features
 
