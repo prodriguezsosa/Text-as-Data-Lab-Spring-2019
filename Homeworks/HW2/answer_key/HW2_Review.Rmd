@@ -1,0 +1,496 @@
+---
+title: "HW2 Review"
+author: "Pedro L. Rodríguez"
+date: "3/19/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = FALSE}
+
+in_path <- "~/Dropbox/NYU/Teaching/Text as Data/homeworks/HW2/data/"
+library(dplyr)
+library(quanteda)
+
+
+library(stringr)
+library(NLP)
+library(tm)
+library(RTextTools)
+library(utf8)
+
+#libs <- c("dplyr", "jsonlite", "stringr", "foreach", "rjson", "quanteda", "NLP", "tm", "RTextTools", "utf8")
+#lapply(libs, library, character.only = TRUE)
+#rm(libs)
+
+# Setting WD and seed
+in_path <- "/Users/pedrorodriguez/Dropbox/NYU/Teaching/Text as Data/homeworks/HW2/data/"
+set.seed(1234)
+```
+
+## Part 1
+
+```{r}
+# build corpus
+df <- tibble(
+mystery = c("immigration voter aliens help economy"),
+republican1 = c("immigration aliens wall emergency country"),
+republican2 = c("voter economy president growth security"),
+republican3 = c("healthcare cost socialism unfair help"),
+democrat1 = c("immigration country diversity help economy"),   
+democrat2 = c("healthcare universal preconditions unfair help"),  
+democrat3 = c("economy inequality opportunity voter help"), 
+democrat4 = c("abortion choice right women help"))
+
+# create document feature matrix
+dfm <- dfm(t(df))
+mat <- as.matrix(dfm)
+rownames(mat) <- names(df)
+mat
+
+# aggregate by author
+agg_mat <- rbind(colSums(mat[c(2:4), ]), colSums(mat[c(5:8), ]) )
+rownames(agg_mat) <- c("republican", "democrat")          
+agg_mat
+
+# num words used by each author
+num_words <- rowSums(agg_mat)
+```
+
+### (a) NB w/o smoothing:
+
+```{r}
+# define priors (# docs of party i/total docs)
+democrat_prior <- 4/7
+republican_prior <- 3/7
+
+# compute likelihoods
+democrat_ll <- prod(agg_mat["democrat", c("immigration", "voter", "aliens", "help", "economy")]/num_words["democrat"])
+
+republican_ll <- prod(agg_mat["republican", c("immigration", "voter", "aliens", "help", "economy")]/num_words["republican"])
+
+# compute posteriors
+democrat_post <- democrat_prior*democrat_ll
+republican_post <- republican_prior*republican_ll 
+
+# log probs
+cat("Posterior probabilities: \n\n Democrat Party:", log(democrat_post), "\n Republican Party:", log(republican_post))
+```
+
+Without smoothing we predict the mystery email was sent by the Republican party.
+
+### (b) NB with Laplace smoothing:
+
+```{r}
+# apply smoothing (add 1 to all entries):
+agg_mat_sm <- agg_mat + 1
+
+# num words used by each author
+num_words <- rowSums(agg_mat_sm)
+
+# compute likelihoods
+democrat_ll <- prod(agg_mat_sm["democrat", c("immigration", "voter", "aliens", "help", "economy")]/num_words["democrat"])
+
+republican_ll <- prod(agg_mat_sm["republican", c("immigration", "voter", "aliens", "help", "economy")]/num_words["republican"])
+
+# compute posteriors
+democrat_post <- democrat_prior*democrat_ll
+republican_post <- republican_prior*republican_ll 
+
+# log probs
+cat("Posterior probabilities: \n\n Democrat Party:", log(democrat_post), "\n Republican Party:", log(republican_post))
+```
+
+With smoothing we predict the mystery email was sent by the Democratic party.
+
+## Part 2
+
+### Question 2
+
+### 2(a): Load data and code positive/negative label based on median score.
+
+```{r}
+# data source: https://www.kaggle.com/omkarsabnis/yelp-reviews-dataset
+
+# read in data
+samp <- read.csv(paste0(in_path, "yelp.csv"), stringsAsFactors = FALSE)
+
+# compute median of star ratings
+med <- median(samp$stars)
+
+# label as positive all ratings above the median
+samp$positive <- as.numeric(samp$stars > med)
+
+# inspect balance of labels (note it is quite unbalanced)
+prop.table(table(samp$positive))
+```
+
+### 2(b): Anchor texts
+
+```{r}
+# identify anchor texts
+samp <- samp %>% mutate(anchor = ifelse(stars == 5, "positive", ifelse(stars == 1, "negative", "neutral")))
+
+# compute proportions
+prop.table(table(samp$anchor))
+```
+
+### Question 3: Dictionaries
+
+### 3(a): Hu & Liu sentiment
+
+* Your results may vary depending on pre-processing etc.
+
+```{r}
+# read in positive and negative words
+pos <- read.table(paste0(in_path, "positive-words.txt"), stringsAsFactors = F)
+neg <- read.table(paste0(in_path, "negative-words.txt"), stringsAsFactors = F)
+
+# create dictionary object (a quanteda object)
+sentiment_dict <- dictionary(list(pos = pos$V1, neg = neg$V1))
+
+# create document feature matrix with pre-processing options
+yelp_dfm <- dfm(samp$text, tolower = TRUE, remove_punct = TRUE, stem = FALSE, dictionary = sentiment_dict)
+
+# calculate net sentiment score
+samp$sent <- as.numeric(yelp_dfm[,'pos']) - as.numeric(yelp_dfm[, 'neg'])
+
+# generate binary vector (1 = positive, 0 = negative)
+samp$sent_pos <- as.numeric(samp$sent >= 0)
+
+# percent positive
+prop.table(table(samp$sent_pos))
+```
+
+### 3(b): Histogram
+
+```{r}
+hist(samp$sent)
+mean(samp$sent_pos)*100
+```
+
+### 3(c): Confusion matrix
+
+```{r}
+# confusion matrix
+confusion_mat <- table(samp$positive, samp$sent_pos)
+
+# baseline accuracy
+baseline_accuracy <- max(prop.table(table(samp$positive)))
+
+# accuracy:
+dict_acc <- sum(diag(confusion_mat))/sum(confusion_mat) # (TP + TN) / (TP + FP + TN + FN)
+
+# recall:
+dict_recall <- confusion_mat[2,2]/sum(confusion_mat[2,]) # TP / (TP + FN)
+
+# precision:
+dict_precision <- confusion_mat[2,2]/sum(confusion_mat[,2]) # TP / (TP + FP)
+
+# F1 score:
+dict_f1 <- 2*dict_precision*dict_recall/(dict_precision + dict_recall)
+
+# print
+cat(
+"Baseline Accuracy: ", baseline_accuracy, "\n",
+"Accuracy:",  dict_acc, "\n",
+"Recall:",  dict_recall, "\n",
+"Precision:",  dict_precision, "\n",
+"F1-score:", dict_f1
+)
+
+```
+
+### 3(d)
+
+```{r}
+samp$rank_scores <- rank(samp$stars, ties.method = "average")  
+
+samp$rank_sent <- rank(samp$sent, ties.method = "average")  
+
+rank_sum_dict <- sum(abs(samp$rank_sent - samp$rank_scores))
+
+rank_sum_dict
+```
+
+### Question 4: Naive Bayes
+
+* Your results may vary depending on pre-processing etc.
+
+### 4(a)
+
+```{r}
+# split sample into training & test sets
+set.seed(1984L)
+ids <- 1:nrow(samp)
+ids_train <- sample(ids, ceiling(0.8*length(ids)), replace = FALSE)
+ids_test <- ids[-ids_train]
+train_set <- samp[ids_train,]
+test_set <- samp[ids_test,]
+
+# get dfm for each set
+train_dfm <- dfm(train_set$text, stem = TRUE, remove_punct = TRUE, remove = stopwords("english"))
+test_dfm <- dfm(test_set$text, stem = TRUE, remove_punct = TRUE, remove = stopwords("english"))
+
+# match test set dfm to train set dfm features
+test_dfm <- dfm_match(test_dfm, features = featnames(train_dfm))
+
+# train model on the training set
+nb_model <- textmodel_nb(train_dfm, train_set$positive, smooth = 0, prior = "uniform")
+
+# evaluate on test set
+predicted_sentiment <- predict(nb_model, newdata = test_dfm)
+
+# get confusion matrix
+cmat <- table(test_set$positive, predicted_sentiment)
+nb_acc <- sum(diag(cmat))/sum(cmat) # accuracy = (TP + TN) / (TP + FP + TN + FN)
+nb_recall <- cmat[2,2]/sum(cmat[2,]) # recall = TP / (TP + FN)
+nb_precision <- cmat[2,2]/sum(cmat[,2]) # precision = TP / (TP + FP)
+nb_f1 <- 2*(nb_recall*nb_precision)/(nb_recall + nb_precision)
+
+# print
+cat(
+"Baseline Accuracy: ", baseline_accuracy, "\n",
+"Accuracy:",  nb_acc, "\n",
+"Recall:",  nb_recall, "\n",
+"Precision:",  nb_precision, "\n",
+"F1-score:", nb_f1
+)
+```
+
+### 4(b)
+
+```{r}
+# train model on the training set using docfreq as prior
+nb_model <- textmodel_nb(train_dfm, train_set$positive, smooth = 1, prior = "docfreq")
+
+# evaluate on test set
+predicted_sentiment <- predict(nb_model, newdata = test_dfm)
+
+# get confusion matrix
+cmat <- table(test_set$positive, predicted_sentiment)
+nb_acc <- sum(diag(cmat))/sum(cmat) # accuracy = (TP + TN) / (TP + FP + TN + FN)
+nb_recall <- cmat[2,2]/sum(cmat[2,]) # recall = TP / (TP + FN)
+nb_precision <- cmat[2,2]/sum(cmat[,2]) # precision = TP / (TP + FP)
+nb_f1 <- 2*(nb_recall*nb_precision)/(nb_recall + nb_precision)
+
+# print
+cat(
+"Baseline Accuracy: ", baseline_accuracy, "\n",
+"Accuracy:",  nb_acc, "\n",
+"Recall:",  nb_recall, "\n",
+"Precision:",  nb_precision, "\n",
+"F1-score:", nb_f1
+)
+```
+
+### Question 5: Wordscores
+
+* Your results may vary depending on pre-processing etc.
+
+### 5(a)
+
+```{r}
+# get train (anchors) and test (non-anchors) sets
+samp_anchor <- samp %>% filter(anchor %in% c("positive", "negative"))
+samp_non_anchor <- samp %>% filter(!(anchor %in% c("positive", "negative")))
+
+# get train and test set dfms
+train_dfm <- dfm(samp_anchor$text, stem = TRUE, remove = stopwords("english"))
+test_dfm <- dfm(samp_non_anchor$text, stem = TRUE, remove = stopwords("english"))
+
+# without smoothing
+ws_model <- textmodel_wordscores(train_dfm, ifelse(samp_anchor$anchor == "positive", 1, -1))
+hist(ws_model$wordscores)
+sort(ws_model$wordscores, decreasing = TRUE)[1:10]
+sort(ws_model$wordscores, decreasing = FALSE)[1:10]
+
+# with smoothing
+ws_model_sm <- textmodel_wordscores(train_dfm, ifelse(samp_anchor$anchor == "positive", 1, -1), smooth = 1)
+hist(ws_model_sm$wordscores)
+
+# Extreme words:
+sort(ws_model_sm$wordscores, decreasing = TRUE)[1:10]
+sort(ws_model_sm$wordscores, decreasing = FALSE)[1:10]
+```
+
+### 5(b) RankSum
+```{r}
+# RankSum statistic (on smoothed version)
+
+# rank according to stars
+samp_non_anchor$rank_scores <- rank(samp_non_anchor$stars, ties.method = "average")  
+
+# get predicted sentiment
+predicted_sentiment <- predict(ws_model_sm, newdata = test_dfm)
+
+# rank according to predicted sentiment
+samp_non_anchor$rank_ws <- rank(predicted_sentiment, ties.method = "average")
+
+# compute rank difference
+rank_sum_ws <- sum(abs(samp_non_anchor$rank_ws - samp_non_anchor$rank_scores))
+
+# which did better?
+rank_sum_ws < rank_sum_dict
+```
+
+## Question 6: SVM
+
+* Your results may vary depending on pre-processing etc.
+
+### 6(b)
+
+```{r, message = FALSE, cache = TRUE}
+# linear SVM model
+
+# subset the reviews
+SVM_reviews <- samp[1:1000, ]
+
+# true label
+true_label <- factor(SVM_reviews$positive)
+
+# create document feature matrix
+library(RTextTools)
+reviews_matrix <- create_matrix(SVM_reviews$text, 
+                                language = "english", 
+                                stemWords = FALSE, 
+                                removePunctuation = FALSE, 
+                                removeStopwords = TRUE)
+
+
+# data breaks (will help us change the size of the training set)
+training_breaks <- lapply(1:9, function(i) as.integer(0.1*i*nrow(SVM_reviews))) %>% unlist()
+
+# train model
+#library(pbapply)
+break_accuracy_lin <- lapply(training_breaks, function(i){
+  # create container
+  container <- create_container(reviews_matrix, 
+                                true_label, 
+                                trainSize = 1:i,
+                                testSize = (i + 1):nrow(SVM_reviews), 
+                                virgin = FALSE)
+  # fit
+  cv.svm <- cross_validate(container, nfold = 5, algorithm = 'SVM', kernel = 'linear')
+  return(cv.svm)
+})
+
+# plot the mean accuracy for each train data size
+lapply(break_accuracy_lin, function(x) x[[2]]) %>% unlist() %>% plot()
+max_acc_svm_linear <- lapply(break_accuracy_lin, function(x) x[[2]]) %>% unlist() %>% max()
+```
+
+### 6(c) 
+
+```{r, cache = TRUE}
+# svm model with radial kernel
+break_accuracy_lin <- lapply(training_breaks, function(i){
+  # create container
+  container <- create_container(reviews_matrix, 
+                                true_label, 
+                                trainSize = 1:i,
+                                testSize = (i + 1):nrow(SVM_reviews), 
+                                virgin = FALSE)
+  # fit
+  cv.svm <- cross_validate(container, nfold = 5, algorithm = 'SVM', kernel = 'radial')
+  return(cv.svm)
+})
+
+# plot the mean accuracy for each train data size
+lapply(break_accuracy_lin, function(x) x[[2]]) %>% unlist() %>% plot()
+max_acc_svm_radial <- lapply(break_accuracy_lin, function(x) x[[2]]) %>% unlist() %>% max()
+
+# print comparison
+cat("Accuracy: \n\n Linear Kernel:", max_acc_svm_linear, "\n\n Radial Kernel:", max_acc_svm_radial)
+```
+
+## 7
+
+### 7(a)
+```{r, message = FALSE, cache = TRUE}
+library(randomForest)
+#https://cran.r-project.org/web/packages/randomForest/randomForest.pdf
+
+# subset the reviews
+RF_reviews <- samp[1:500,]
+
+# split original sample into training & test sets
+set.seed(1984L)
+ids <- 1:nrow(RF_reviews)
+ids_train <- sample(ids, ceiling(0.8*length(ids)), replace = FALSE)
+ids_test <- ids[-ids_train]
+train_set <- RF_reviews[ids_train,]
+test_set <- RF_reviews[ids_test,]
+
+# get dfm
+train_dfm <- dfm(train_set$text, stem = TRUE, remove_punct = TRUE, remove = stopwords("english"))
+test_dfm <- dfm(test_set$text, stem = TRUE, remove_punct = TRUE, remove = stopwords("english"))
+
+# match test set dfm to train set dfm features
+test_dfm <- dfm_match(test_dfm, features = featnames(train_dfm))
+```
+
+### 7(b)
+```{r, cache = TRUE}
+# fit model
+#start_time <- Sys.time()
+rf_model <- randomForest(x = as.matrix(train_dfm), y = factor(train_set$positive), ntree = 501, mtry = sqrt(ncol(as.matrix(train_dfm))), importance = TRUE) 
+#Sys.time() - start_time
+token_importance <- round(importance(rf_model, 2), 2)
+head(rownames(token_importance)[order(-token_importance)])
+
+# plot importance
+varImpPlot(rf_model, n.var = 10)
+```
+
+### 7(c)
+```{r, cache = TRUE}
+# baseline accuracy
+baseline_accuracy <- max(prop.table(table(test_set$positive)))
+
+# use fitted model to predict labels in test set
+predictions_rf <- predict(rf_model, as.matrix(test_dfm))
+
+
+# get confusion matrix
+cmat <- table(test_set$positive, predictions_rf)
+rf_acc <- sum(diag(cmat))/sum(cmat) # accuracy = (TP + TN) / (TP + FP + TN + FN)
+rf_recall <- cmat[2,2]/sum(cmat[2,]) # recall = TP / (TP + FN)
+rf_precision <- cmat[2,2]/sum(cmat[,2]) # precision = TP / (TP + FP)
+rf_f1 <- 2*(rf_recall*rf_precision)/(rf_recall + rf_precision)
+
+# print
+cat(
+"Baseline Accuracy: ", baseline_accuracy, "\n",
+"Accuracy:",  rf_acc, "\n",
+"Recall:",  rf_recall, "\n",
+"Precision:",  rf_precision, "\n",
+"F1-score:", rf_f1
+)
+```
+
+
+### 7(c)
+```{r, cache = TRUE}
+
+# mtry = 0.5*default
+rf_model_0.5 <- randomForest(x = as.matrix(train_dfm), y = factor(train_set$positive), ntree = 501, mtry = 0.5*sqrt(ncol(as.matrix(train_dfm))), importance = TRUE) 
+predictions_rf_0.5 <- predict(rf_model_0.5, as.matrix(test_dfm))
+cmat <- table(test_set$positive, predictions_rf_0.5)
+rf_acc_0.5 <- sum(diag(cmat))/sum(cmat) # accuracy = (TP + TN) / (TP + FP + TN + FN)
+
+# mtry = 1.5*default
+rf_model_1.5 <- randomForest(x = as.matrix(train_dfm), y = factor(train_set$positive), ntree = 501, mtry = 1.5*sqrt(ncol(as.matrix(train_dfm))), importance = TRUE) 
+predictions_rf_1.5 <- predict(rf_model_1.5, as.matrix(test_dfm))
+cmat <- table(test_set$positive, predictions_rf_1.5)
+rf_acc_1.5 <- sum(diag(cmat))/sum(cmat) # accuracy = (TP + TN) / (TP + FP + TN + FN)
+
+# bind accuracy scores
+acc_tb <- tibble(mtry_default = rf_acc, mtry_0.5 = rf_acc_0.5, mtry_1.5 = rf_acc_1.5)
+
+# best performing parameter value
+cat("highest out-of-sample accuracy achieved by:", names(acc_tb)[which(acc_tb == max(acc_tb))])
+```

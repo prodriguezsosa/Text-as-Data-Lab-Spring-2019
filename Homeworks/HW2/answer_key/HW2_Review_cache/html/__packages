@@ -1,0 +1,10 @@
+base
+dplyr
+quanteda
+stringr
+NLP
+tm
+SparseM
+RTextTools
+utf8
+randomForest
