@@ -154,7 +154,7 @@ SOTU_dfm@Dimnames$docs[55]
 topfeatures(SOTU_dfm[55,])
 
 sort(SOTU_lsa_5_mat[55,], decreasing=T)[1:10]
-sort(t(as.textmatrix(SOTU_lsa_auto))[55, ], decreasing = T)[1:10]
+sort(t(as.textmatrix(SOTU_lsa))[55, ], decreasing = T)[1:10]
 
 # Q: How are words related?
 # associate(): a method to identify words that are most similar to other words using a LSA
@@ -212,7 +212,7 @@ lab_con_dfm <- dfm(man_df$text,
 )
 
 # 2.2 fit wordfish
-
+lab_con_dfm@Dimnames$docs <- man_df$text_label 
 # Setting the index on parties
 manifestos_fish <- textmodel_wordfish(lab_con_dfm, c(1,24)) # second parameter corresponds to index texts
 
