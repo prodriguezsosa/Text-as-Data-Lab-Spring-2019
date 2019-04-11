@@ -51,6 +51,7 @@ fviz_eig(SOTU_pca, addlabels = TRUE)
 SOTU_pca$rotation[1:10, 1:5]
 dim(SOTU_pca$rotation)
 
+# Q: can we interpret the dimensions?
 # top loadings on PC1
 pc_loadings <- SOTU_pca$rotation
 
@@ -80,7 +81,7 @@ ggplot(pc1_loading, aes(token, loading)) +
         plot.margin=unit(c(1,1,0,0),"cm"))
 
 # Value of the rotated data: your "new", dimensionality reduced data
-View(SOTU_pca$x)
+View(SOTU_pca$x)  # each observation 
 
 # retrieve most similar documents
 library(text2vec)
@@ -105,21 +106,26 @@ nearest_neighbors(query = "Obama-2009", low_dim_space = SOTU_pca$x, N = 5, norm 
 ## 2 Latent Semantic Analysis (LSA) aka Latent Semantic Indexing (LSI)
 
 library(lsa)
+# foundational theory: distributional hypothesis
+# what is the context in LSA? document
 
 # Let's keep using the SOTU data from before
-SOTU_mat_lsa <- convert(SOTU_dfm, to = "lsa") # convert to transposed matrix
-SOTU_mat_lsa <- lw_logtf(SOTU_mat_lsa) * gw_idf(SOTU_mat_lsa)
+SOTU_mat_lsa <- convert(SOTU_dfm, to = "lsa") # convert to transposed matrix (so terms are rows and columns are documents = TDM)
+SOTU_mat_lsa <- lw_logtf(SOTU_mat_lsa) * gw_idf(SOTU_mat_lsa) # local - global weighting (akin to TFIDF)
 
 # 2.1 Create LSA weights using TDM
 SOTU_lsa <- lsa(SOTU_mat_lsa)
 #lsa(myMatrix, dims = dimcalc_share(share = 0.8)) # share = fraction of the sum of the selected singular values over the sum of all singular values, default is 0.5
+
+# what do we expect this correlation to be?
+cor(SOTU_lsa$tk[,1], SOTU_lsa$tk[,2])  # these should be orthogonal
 
 # 2.2 Check to see what a good number of dimensions is
 ?dimcalc_share
 
 # lsa_obj$tk = truncated term matrix from term vector matrix T (constituting left singular vectors from the SVD of the original matrix)
 # lsa_obj$dk = truncated document matrixfrom document vector matrix D (constituting right singular vectors from the SVD of the original matrix)
-# lsa_obj$sk = singular values
+# lsa_obj$sk = singular values: Matrix of scaling values to ensure that multiplying these matrices reconstructs TDM
 # see: https://cran.r-project.org/web/packages/lsa/lsa.pdf
 
 # Lecture example uses dims = 5
@@ -129,14 +135,15 @@ SOTU_lsa_5 <- lsa(SOTU_mat_lsa, 5)
 ?as.textmatrix
 SOTU_lsa_5_mat <- t(as.textmatrix(SOTU_lsa_5))
 
-# 2.3 Compare features for a few speeches
+# 2.3 Q: What are these documents about?
+# Compare features for a few speeches
 SOTU_dfm@Dimnames$docs[9]
 topfeatures(SOTU_dfm[9,])
 
 # With 5 dims:
 sort(SOTU_lsa_5_mat[9,], decreasing=T)[1:10]
 
-# With auto (42) dims:
+# With auto (21) dims:
 sort(t(as.textmatrix(SOTU_lsa))[9, ], decreasing = T)[1:10]
 
 # Another example:
@@ -146,7 +153,7 @@ topfeatures(SOTU_dfm[55,])
 sort(SOTU_lsa_5_mat[55,], decreasing=T)[1:10]
 sort(t(as.textmatrix(SOTU_lsa_auto))[55, ], decreasing = T)[1:10]
 
-
+# Q: How are words related?
 # associate(): a method to identify words that are most similar to other words using a LSA
 ?associate
 # uses cosine similarity between input term and other terms
@@ -161,6 +168,8 @@ health[1:10]
 # Keep this in mind when we do topic models!
 
 ## 2 WORDFISH
+# one-dimensional text scaling method.
+# unlike wordscores, it does not require reference texts
 
 # How is it different from other approaches we've used for scaling?
 
@@ -189,6 +198,10 @@ man_df <- data.frame(year = factor(as.numeric(year)),
                      text = text,
                      stringsAsFactors = FALSE)
 
+# add text labels
+man_df$text_label <- paste(man_df$party, man_df$year, sep = "_")
+
+
 lab_con_dfm <- dfm(man_df$text, 
                    stem = T, 
                    remove = stopwords("english"), 
@@ -199,6 +212,10 @@ lab_con_dfm <- dfm(man_df$text,
 
 # Setting the index on parties
 manifestos_fish <- textmodel_wordfish(lab_con_dfm, c(1,24)) # second parameter corresponds to index texts
+
+# visualize one-dimensional scaling
+textplot_scale1d(manifestos_fish)
+textplot_scale1d(manifestos_fish, groups = man_df$party)
 
 # Plot of document positions
 plot(year[1:23], manifestos_fish$theta[1:23]) # These are the conservative manifestos
