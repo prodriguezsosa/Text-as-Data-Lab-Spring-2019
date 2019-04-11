@@ -55,6 +55,9 @@ dim(SOTU_pca$rotation)
 # top loadings on PC1
 pc_loadings <- SOTU_pca$rotation
 
+# what do we expect this correlation to be?
+cor(pc_loadings[,1], pc_loadings[,2])  # these should be orthogonal
+
 # token loadings
 N <- 10
 pc1_loading <- tibble(token = rownames(pc_loadings), loading = as.vector(pc_loadings[,1])) %>% arrange(-loading)
