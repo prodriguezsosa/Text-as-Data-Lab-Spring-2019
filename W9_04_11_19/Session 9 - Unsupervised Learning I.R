@@ -127,7 +127,7 @@ cor(SOTU_lsa$tk[,1], SOTU_lsa$tk[,2])  # these should be orthogonal
 ?dimcalc_share
 
 # lsa_obj$tk = truncated term matrix from term vector matrix T (constituting left singular vectors from the SVD of the original matrix)
-# lsa_obj$dk = truncated document matrixfrom document vector matrix D (constituting right singular vectors from the SVD of the original matrix)
+# lsa_obj$dk = truncated document matrix from document vector matrix D (constituting right singular vectors from the SVD of the original matrix)
 # lsa_obj$sk = singular values: Matrix of scaling values to ensure that multiplying these matrices reconstructs TDM
 # see: https://cran.r-project.org/web/packages/lsa/lsa.pdf
 
