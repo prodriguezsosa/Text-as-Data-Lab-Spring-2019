@@ -107,6 +107,7 @@ dim(blm_dfm)  # how many features do we have?
 dim(blm_tm@beta)
 blm_tm@beta[1:5,1:5]
 sum(blm_tm@beta[1,]) # each row sums to?
+sum(exp(blm_tm@beta[10,])) # each row sums to?
 
 # Per topic per word proabilities matrix (beta)
 blm_topics <- tidy(blm_tm, matrix = "beta") 
@@ -149,7 +150,7 @@ blm_topics %>%
 
 ## 4 Visualizing topic trends over time
 
-# Store the results of the distribution of topics over documents
+# Store the results of the mixture of documents over topics 
 doc_topics <- blm_tm@gamma
 
 # Store the results of words over topics
