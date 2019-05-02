@@ -50,7 +50,7 @@ bursty <- function(word = "sioux", DTM, date) {
 
 
 # 2 Let's use this on the Conservative and Labour manifestos
-
+setwd("/Users/pedrorodriguez/Drobox/GitHub/Text-as-Data-Lab-Spring-2019/W6_03_07_19/cons_labour_manifestos/")
 list.files()
 
 # Loading data
